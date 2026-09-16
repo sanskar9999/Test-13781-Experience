@@ -67,6 +67,23 @@
   .btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
   .btn svg{width:24px;height:24px;stroke:var(--ink);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
   #file{display:none}
+  #dbg{
+    display:none;
+    position:fixed;
+    left:8px;
+    right:8px;
+    top:8px;
+    max-height:38dvh;
+    overflow:auto;
+    background:rgba(20,18,16,.88);
+    color:#f2ede4;
+    font:11px/1.5 ui-monospace,Menlo,monospace;
+    white-space:pre-wrap;
+    word-break:break-word;
+    border-radius:12px;
+    padding:10px 12px;
+    z-index:50;
+  }
 </style>
 </head>
 <body>
@@ -84,6 +101,7 @@
   </button>
 </div>
 <input id="file" type="file" accept="image/*">
+<div id="dbg" aria-hidden="true"></div>
 <script type="module">
 import { AutoModel, AutoImageProcessor } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0';
 import { slicePatchTokens, normalizeRows, similarityMap, pointToCell, simToAlpha } from './touch.js';
@@ -117,6 +135,7 @@ let shown = null;
 let tapped = -1;
 let ready = false; // model + features for current photo
 let modelLoading = true;
+let brainDead = false;
 let loadFrac = 0;
 let sweep = -1; // inference sweep position, -1 idle
 let ripples = [];
@@ -125,6 +144,18 @@ let customURL = null;
 let tGlobal = rand(0, 100);
 let last = performance.now();
 const sim = document.createElement('canvas'); // low-res glow map
+const dbgEl = document.getElementById('dbg');
+const DEBUG = new URLSearchParams(location.search).has('debug');
+if (DEBUG) dbgEl.style.display = 'block';
+function log(msg) {
+  const line = '[' + ((performance.now() / 1000).toFixed(1)) + 's] ' + msg;
+  console.log('[touch]', line);
+  if (!DEBUG) return;
+  dbgEl.textContent += line + '\n';
+  const lines = dbgEl.textContent.split('\n');
+  if (lines.length > 60) dbgEl.textContent = lines.slice(-60).join('\n');
+  dbgEl.scrollTop = dbgEl.scrollHeight;
+}
 
 function rr(c, x, y, w, h, r) {
   c.beginPath();
@@ -163,10 +194,13 @@ function drawBase() {
     pctx.fillStyle = '#ffffff';
     pctx.fillRect(0, 0, side, side);
   }
-  // breathing veil while the brain is busy
-  if (!ready) {
+  // breathing veil while the brain is busy; steady dim when it failed
+  if (!ready && !brainDead) {
     const a = 0.10 + 0.06 * Math.sin(tGlobal * 2.2);
     pctx.fillStyle = 'rgba(255,255,255,' + a.toFixed(3) + ')';
+    pctx.fillRect(0, 0, side, side);
+  } else if (brainDead) {
+    pctx.fillStyle = 'rgba(228,224,216,0.28)';
     pctx.fillRect(0, 0, side, side);
   }
   pctx.restore();
@@ -224,10 +258,14 @@ function drawStrip() {
       const d = Math.abs(sweep - i);
       fill = clamp(1 - d / 3, 0.16, 1);
       r = 4 + clamp(1 - d / 3, 0, 1) * 2;
+    } else if (brainDead) {
+      fill = 0;
     } else {
       fill = 0.30 + 0.10 * Math.sin(tGlobal * 1.8 + i * 0.55);
     }
-    sctx.fillStyle = 'rgba(226,160,107,' + fill.toFixed(3) + ')';
+    sctx.fillStyle = brainDead && sweep < 0
+      ? 'rgba(140,132,122,0.40)'
+      : 'rgba(226,160,107,' + fill.toFixed(3) + ')';
     sctx.beginPath();
     sctx.arc(x, 7, r, 0, TAU);
     sctx.fill();
@@ -278,15 +316,20 @@ async function ensureBrain(progress) {
   const tries = [
     { dtype: 'q4', device: 'webgpu' },
     { dtype: 'q4', device: 'wasm' },
+    { dtype: 'q8', device: 'wasm' },
   ];
   for (const opt of tries) {
     try {
+      log('brain try ' + opt.dtype + '/' + opt.device);
       if (!processor) {
         processor = await AutoImageProcessor.from_pretrained(MODEL, { progress_callback: progress });
+        log('processor ready');
       }
       model = await AutoModel.from_pretrained(MODEL, { ...opt, progress_callback: progress });
+      log('brain ok: ' + opt.dtype + '/' + opt.device);
       return true;
-    } catch {
+    } catch (e) {
+      log('brain fail ' + opt.dtype + '/' + opt.device + ': ' + (e && e.message ? e.message : e));
       model = null;
     }
   }
@@ -296,8 +339,10 @@ async function ensureBrain(progress) {
 async function infer() {
   if (!processor || !model || square.width === 0) return;
   sweep = 0;
+  const t0 = performance.now();
   try {
     const { pixel_values } = await processor(square);
+    log('pixels: [' + pixel_values.dims.join(',') + ']');
     const out = await model({ pixel_values });
     const rows = out.last_hidden_state.tolist()[0];
     const regs = model.config && model.config.num_register_tokens ? model.config.num_register_tokens : 4;
@@ -309,8 +354,12 @@ async function infer() {
     shown = new Float32Array(grid * grid);
     tapped = -1;
     ready = true;
-  } catch {
+    brainDead = false;
+    log('infer ok: grid=' + grid + ' dim=' + dim + ' regs=' + regs + ' ms=' + Math.round(performance.now() - t0));
+  } catch (e) {
     ready = false;
+    brainDead = true;
+    log('infer fail: ' + (e && e.message ? e.message : e));
   }
 }
 
@@ -328,6 +377,7 @@ function setPhoto(img) {
   tapped = -1;
   ripples = [];
   ready = false;
+  brainDead = false;
   if (model && processor) infer();
 }
 
@@ -343,6 +393,7 @@ photo.addEventListener('pointerdown', (ev) => {
   const y = ev.clientY - rect.top;
   if (!ready || !feats) {
     ripples.push({ x, y, r: 6, a: 0.45 });
+    log('tap ignored: ready=' + ready + ' dead=' + brainDead + ' loading=' + modelLoading);
     return;
   }
   const cell = pointToCell(x, y, side, grid);
@@ -397,8 +448,11 @@ const progress = (info) => {
 };
 
 (async () => {
+  log('boot; webgpu=' + (navigator.gpu ? 'yes' : 'no') + ' dpr=' + (window.devicePixelRatio || 1));
   const ok = await ensureBrain(progress);
   modelLoading = false;
+  brainDead = !ok;
+  log(ok ? 'brain loaded' : 'brain FAILED all tries');
   if (ok) infer();
 })();
 </script>
