@@ -1,575 +1,587 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zxx">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>IIT 4.0 Phi Simulator - n=5 Conscious System Designer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f3ec">
+<title>○</title>
 <style>
-*{box-sizing:border-box;font-family:system-ui,Segoe UI,Roboto,Arial}
-body{margin:0;background:#0f1115;color:#e6e6e6}
-header{padding:14px 16px;background:#171a22;border-bottom:1px solid #2a2f3f;position:sticky;top:0;z-index:5}
-header h1{margin:0;font-size:18px}
-header p{margin:4px 0 0;color:#9aa0b2;font-size:13px}
-main{display:grid;grid-template-columns:360px 1fr 360px;gap:12px;padding:12px}
-@media(max-width:1100px){main{grid-template-columns:1fr}}
-.card{background:#1a1e2b;border:1px solid #2a2f3f;border-radius:10px;padding:12px}
-.card h2{margin:0 0 8px;font-size:14px;letter-spacing:.04em;text-transform:uppercase;color:#9aa0b2}
-label{font-size:12px;color:#9aa0b2}
-select,button,input{border-radius:8px;border:1px solid #2a2f3f;background:#0f1115;color:#e6e6e6;padding:8px}
-button{cursor:pointer;background:#2b5cff;border-color:#2b5cff;font-weight:600}
-button.secondary{background:#232738;border-color:#2a2f3f}
-.grid{display:grid;gap:8px}
-.row{display:flex;gap:8px;flex-wrap:wrap}
-.matrix{display:grid;gap:4px}
-.matrix .r{display:flex;gap:4px;align-items:center}
-.matrix .r span{width:18px;font-size:11px;color:#9aa0b2;text-align:center}
-.cell{width:30px;height:30px;display:grid;place-items:center;border-radius:6px;border:1px solid #2a2f3f;cursor:pointer;font-size:12px}
-.cell.on{background:#2b5cff;color:white;border-color:#2b5cff}
-.node{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;font-weight:700;border:2px solid #2a2f3f;cursor:pointer;user-select:none}
-.node.on{background:#2b5cff;border-color:#5b7cff;box-shadow:0 0 12px rgba(43,92,255,.6)}
-.node.off{background:#232738;color:#9aa0b2}
-canvas{width:100%;height:320px;background:#0c0e13;border:1px solid #2a2f3f;border-radius:10px}
-.kpi{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.kpi div{background:#0f1115;border:1px solid #2a2f3f;border-radius:8px;padding:10px}
-.kpi b{font-size:20px;display:block}
-.kpi span{font-size:11px;color:#9aa0b2}
-.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px;white-space:pre-wrap;word-break:break-word}
-.badge{display:inline-block;padding:2px 6px;border-radius:999px;background:#232738;border:1px solid #2a2f3f;font-size:11px;color:#9aa0b2}
-.concept{border:1px solid #2a2f3f;border-radius:8px;padding:8px;margin:6px 0;background:#0f1115}
-.concept b{color:#5b7cff}
-a{color:#5b7cff}
+  :root{
+    --paper:#f6f3ec;
+    --card:rgba(255,255,255,.82);
+    --line:rgba(60,55,50,.08);
+    --ink:#8a8783;
+    --ink-soft:#b6b1aa;
+    --accent:#e2a06b;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:var(--paper);
+    overflow:hidden;
+    overscroll-behavior:none;
+    font-family:system-ui,-apple-system,sans-serif;
+  }
+  #stage{
+    position:fixed;
+    inset:0;
+    width:100%;
+    height:100%;
+    display:block;
+    touch-action:none;
+    cursor:pointer;
+  }
+  .dock{
+    position:fixed;
+    left:50%;
+    bottom:calc(18px + env(safe-area-inset-bottom));
+    transform:translateX(-50%);
+    display:flex;
+    gap:12px;
+    padding:10px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:999px;
+    box-shadow:0 10px 30px rgba(90,80,70,.12), 0 2px 8px rgba(90,80,70,.08);
+    backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);
+  }
+  .btn{
+    width:54px;
+    height:54px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:#fff;
+    display:grid;
+    place-items:center;
+    cursor:pointer;
+    padding:0;
+    box-shadow:0 4px 14px rgba(90,80,70,.10);
+    transition:transform .35s cubic-bezier(.34,1.56,.64,1), box-shadow .35s ease, background .35s ease;
+  }
+  .btn:hover{transform:translateY(-1px) scale(1.03);box-shadow:0 8px 20px rgba(90,80,70,.14)}
+  .btn:active{transform:scale(.96)}
+  .btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+  .btn svg{width:24px;height:24px;stroke:var(--ink);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .btn[aria-pressed="true"]{background:#fff7ee;border-color:rgba(226,160,107,.35)}
+  .btn[aria-pressed="true"] svg{stroke:var(--accent)}
+  .btn .alt{display:none}
+  .btn.is-alt .main{display:none}
+  .btn.is-alt .alt{display:block}
+  @media (prefers-reduced-motion:reduce){
+    .btn{transition:none}
+  }
 </style>
 </head>
 <body>
-<header>
-<h1>IIT 4.0 CONSCIOUS SYSTEM DESIGNER - n=5</h1>
-<p>Design a network, set its state, and measure Phi (A). ID = Kullback-Leibler, not EMD. Exhaustive search, 32 TPM rows, ~15 cuts. Per-state Phi, not average.</p>
-</header>
-<main>
-<div class="grid">
-<div class="card">
-<h2>1. Presets</h2>
-<div class="row">
-<button onclick="preset('het')">Heterogeneous Integrated (high Phi)</button>
-<button class="secondary" onclick="preset('clique')">Clique Homogeneous (low Phi)</button>
-<button class="secondary" onclick="preset('lattice')">Lattice Ring (low Phi)</button>
-<button class="secondary" onclick="preset('disconn')">Disconnected (Phi=0)</button>
-<button class="secondary" onclick="preset('random')">Random</button>
-</div>
-<div style="margin-top:8px" class="mono" id="presetInfo"></div>
-</div>
-<div class="card">
-<h2>2. Connectivity (who receives from whom)</h2>
-<div class="mono" style="font-size:11px;color:#9aa0b2">Row = receiver, Col = sender. Tap to toggle.</div>
-<div id="matrix" class="matrix" style="margin-top:8px"></div>
-</div>
-<div class="card">
-<h2>3. Gates per node</h2>
-<div id="gates" class="grid" style="grid-template-columns:1fr 1fr;gap:6px"></div>
-<label style="display:block;margin-top:8px">Noise (0 = deterministic): <span id="noiseVal">0.00</span></label>
-<input type="range" id="noise" min="0" max="0.2" step="0.01" value="0" oninput="updateNoise(this.value)">
-</div>
-<div class="card">
-<h2>4. Current State (tap nodes)</h2>
-<div id="nodes" class="row" style="gap:10px"></div>
-<div class="row" style="margin-top:8px">
-<button class="secondary" onclick="randomState()">Random state</button>
-<button class="secondary" onclick="flipAll()">Flip all</button>
-</div>
-</div>
-</div>
-<div class="grid">
-<div class="card">
-<h2>Graph</h2>
-<canvas id="graph" width="600" height="320"></canvas>
-<div class="row" style="margin-top:8px">
-<span class="badge" id="infoN">n=5</span>
-<span class="badge" id="infoEdges">edges: -</span>
-<span class="badge" id="infoGates">gates: -</span>
-</div>
-</div>
-<div class="card">
-<h2>Phi (A) - System Level</h2>
-<div class="kpi">
-<div><span>BIG PHI (A)</span><b id="bigPhi">-</b><span id="bigMip"></span></div>
-<div><span>STATE</span><b id="stateStr">-</b><span>per-state, not average</span></div>
-</div>
-<div style="margin-top:10px">
-<span class="badge">MIP = partition with minimal loss</span>
-<div id="phiBar" style="height:14px;background:#0f1115;border:1px solid #2a2f3f;border-radius:99px;margin-top:6px;overflow:hidden"><div id="phiFill" style="height:100%;width:0%;background:#2b5cff"></div></div>
-<div class="mono" id="phiExplain" style="margin-top:6px;color:#9aa0b2"></div>
-</div>
-<div class="row" style="margin-top:8px"><button onclick="compute()">Compute Phi</button><button class="secondary" onclick="autoCompute=true;compute()">Auto ON</button></div>
-</div>
-<div class="card">
-<h2>Trajectory (why averaging is wrong)</h2>
-<div class="mono" id="trajectory"></div>
-</div>
-</div>
-<div class="grid">
-<div class="card">
-<h2>Small Phi (mechanisms)</h2>
-<div id="smallPhi" class="mono"></div>
-</div>
-<div class="card">
-<h2>MICS - Conceptual Structure</h2>
-<div class="mono" style="color:#9aa0b2;font-size:11px">Each concept = mechanism + purview + phi. Position in qualia space = repertoires.</div>
-<div id="concepts" style="max-height:320px;overflow:auto"></div>
-<canvas id="qualia" width="340" height="240" style="height:240px;margin-top:8px"></canvas>
-</div>
-<div class="card">
-<h2>Exclusion - Complexes</h2>
-<div class="mono" style="color:#9aa0b2;font-size:11px">Search all 31 subsets. Overlapping losers excluded. Only maxima exist.</div>
-<div id="complexes" class="mono"></div>
-</div>
-<div class="card">
-<h2>Design Guidance</h2>
-<div class="mono" style="font-size:12px;line-height:1.5">
-<b>High Phi needs:</b> heterogeneous gates + sparse-but-specific wiring + integration (no cheap cut). Small-world-like beats clique and lattice.
-
-<b>Low Phi traps:</b> fully connected homogeneous (redundant, many equal cuts), lattice COPY (local only), disconnected (Phi=0).
-
-<b>State matters:</b> same wiring, different state = different Phi and different winning complex. Always report per-state.
-
-<b>IIT 4.0 vs 3.0:</b> ID = KL (asymmetric, existence postulate) not EMD. Values not comparable across versions. This simulator = ID.
-</div>
-</div>
+<canvas id="stage" aria-label="soft neuron garden"></canvas>
+<div class="dock">
+  <button id="bPause" class="btn" aria-label="pause" aria-pressed="false">
+    <svg class="main" viewBox="0 0 24 24"><line x1="9" y1="6" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="18"/></svg>
+    <svg class="alt" viewBox="0 0 24 24"><path d="M8 5.5 C8 5 8.6 4.6 9.1 4.9 L17 10.4 C17.5 10.7 17.5 11.3 17 11.6 L9.1 17.1 C8.6 17.4 8 17 8 16.5 Z"/></svg>
+  </button>
+  <button id="bNew" class="btn" aria-label="new">
+    <svg viewBox="0 0 24 24"><path d="M19 12 C19 15.9 15.9 19 12 19 C8.8 19 6 16.8 5.2 13.8"/><path d="M5 12 C5 8.1 8.1 5 12 5 C15.2 5 18 7.2 18.8 10.2"/><path d="M18.8 5.5 L18.8 10.2 L14.2 10.2"/><path d="M5.2 18.5 L5.2 13.8 L9.8 13.8"/></svg>
+  </button>
+  <button id="bSound" class="btn" aria-label="sound" aria-pressed="false">
+    <svg class="main" viewBox="0 0 24 24"><path d="M4 9.5 L4 14.5 C4 15 4.4 15.5 5 15.5 L8 15.5 L12.5 19.5 C13 20 13.8 19.6 13.8 18.9 L13.8 5.1 C13.8 4.4 13 4 12.5 4.5 L8 8.5 L5 8.5 C4.4 8.5 4 9 4 9.5 Z"/><line x1="16.5" y1="9.5" x2="20.5" y2="14.5"/><line x1="20.5" y1="9.5" x2="16.5" y2="14.5"/></svg>
+    <svg class="alt" viewBox="0 0 24 24"><path d="M4 9.5 L4 14.5 C4 15 4.4 15.5 5 15.5 L8 15.5 L12.5 19.5 C13 20 13.8 19.6 13.8 18.9 L13.8 5.1 C13.8 4.4 13 4 12.5 4.5 L8 8.5 L5 8.5 C4.4 8.5 4 9 4 9.5 Z"/><path d="M16.2 9.2 C17.3 10.3 17.3 13.7 16.2 14.8"/><path d="M18.6 7 C20.7 9.1 20.7 14.9 18.6 17"/></svg>
+  </button>
 </div>
 <script>
-// IIT 4.0 JS engine - mirrors Python demo, n=5 exhaustive, deterministic or noisy
-const N=5;
-let conn = Array.from({length:N},()=>Array(N).fill(0));
-let gates = Array(N).fill('XOR');
-let state = [1,0,1,0,1];
-let noise=0;
-let autoCompute=false;
+(() => {
+  const canvas = document.getElementById('stage');
+  const ctx = canvas.getContext('2d');
+  const bPause = document.getElementById('bPause');
+  const bNew = document.getElementById('bNew');
+  const bSound = document.getElementById('bSound');
 
-const GATE_OPTS=['COPY','AND','OR','XOR','MAJORITY'];
-function applyGate(inputs, gate){
-  gate=gate.toUpperCase();
-  if(inputs.length===0) return 0;
-  if(gate==='COPY') return inputs[0];
-  if(gate==='AND') return inputs.every(v=>v===1)?1:0;
-  if(gate==='OR') return inputs.some(v=>v===1)?1:0;
-  if(gate==='XOR') return inputs.reduce((a,b)=>a^b,0);
-  if(gate==='MAJORITY') return inputs.filter(v=>v===1).length > inputs.length/2 ?1:0;
-  return 0;
-}
-function expandTPM(conn,gates,noise){
-  const n=conn.length, size=1<<n;
-  const tpm=[];
-  for(let idx=0; idx<size; idx++){
-    const s=Array.from({length:n},(_,j)=>(idx>>j)&1);
-    const row=[];
-    for(let i=0;i<n;i++){
-      const inputs=[];
-      for(let j=0;j<n;j++) if(conn[i][j]) inputs.push(s[j]);
-      let det=applyGate(inputs,gates[i]);
-      if(noise===0) row.push(det);
-      else row.push(det===1?1-noise:noise);
-    }
-    tpm.push(row);
+  const TAU = Math.PI * 2;
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const smooth = (dt, s) => 1 - Math.exp(-dt * s);
+
+  let W = 0, H = 0, DPR = 1;
+  let nodes = [];
+  let edges = [];
+  let pulses = [];
+  let ripples = [];
+  let paused = false;
+  let soundOn = false;
+  let fade = 1;
+  let fadeTarget = 1;
+  let last = performance.now();
+  let tGlobal = rand(0, 100);
+  let ambientIn = 3;
+  let audio = null;
+
+  const NOTES = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66];
+
+  function resize() {
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   }
-  return tpm;
-}
-function unconstrained(purviewSize){
-  const n=1<<purviewSize;
-  return Array(n).fill(1/n);
-}
-function purviewIndex(fullState, purview){
-  let idx=0;
-  purview.forEach((node,pos)=>{ if(fullState[node]) idx|=(1<<pos); });
-  return idx;
-}
-function causeRepertoire(tpm, state, mechanism, purview){
-  const n=state.length, size=1<<n;
-  const mechVals=mechanism.map(m=>state[m]);
-  const ps=purview.length, nStates=1<<ps;
-  const counts=Array(nStates).fill(0);
-  for(let pastIdx=0; pastIdx<size; pastIdx++){
-    let lik=1;
-    const row=tpm[pastIdx];
-    for(let mi=0; mi<mechanism.length; mi++){
-      const mNode=mechanism[mi], p1=row[mNode], obs=mechVals[mi];
-      lik *= (obs===1? p1 : 1-p1);
-      if(lik===0) break;
-    }
-    const past=Array.from({length:n},(_,j)=>(pastIdx>>j)&1);
-    // need mapping to purview index
-    let pIdx=0;
-    purview.forEach((node,pos)=>{ if(past[node]) pIdx|=(1<<pos); });
-    counts[pIdx]+=lik;
+
+  function nearestCount() {
+    if (W < 620) return 12;
+    if (W < 1100) return 16;
+    return 19;
   }
-  const tot=counts.reduce((a,b)=>a+b,0);
-  if(tot===0) return unconstrained(ps);
-  return counts.map(c=>c/tot);
-}
-function effectRepertoire(tpm, state, mechanism, purview){
-  const n=state.length, size=1<<n;
-  const mechVals=mechanism.map(m=>state[m]);
-  const ps=purview.length, nStates=1<<ps;
-  const matching=[];
-  for(let idx=0; idx<size; idx++){
-    let ok=true;
-    for(let mi=0; mi<mechanism.length; mi++){
-      const m=mechanism[mi], bit=(idx>>m)&1;
-      if(bit!==mechVals[mi]){ ok=false; break; }
-    }
-    if(ok) matching.push(idx);
-  }
-  if(matching.length===0) return unconstrained(ps);
-  const agg=Array(nStates).fill(0);
-  for(const idx of matching){
-    const row=tpm[idx];
-    for(let pIdx=0;pIdx<nStates;pIdx++){
-      let prob=1;
-      for(let pos=0; pos<purview.length; pos++){
-        const pNode=purview[pos], bit=(pIdx>>pos)&1, p1=row[pNode];
-        prob *= (bit===1? p1 : 1-p1);
+
+  function newGarden() {
+    const n = nearestCount();
+    const cx = W * 0.5;
+    const cy = H * 0.46;
+    const rx = Math.min(W * 0.36, 420);
+    const ry = Math.min(H * 0.30, 320);
+    nodes = [];
+    let guard = 0;
+    while (nodes.length < n && guard < 900) {
+      guard += 1;
+      const a = rand(0, TAU);
+      const rr = Math.sqrt(Math.random());
+      const bx = cx + Math.cos(a) * rr * rx + rand(-18, 18);
+      const by = cy + Math.sin(a) * rr * ry + rand(-18, 18);
+      let ok = true;
+      for (const q of nodes) {
+        const dx = q.bx - bx;
+        const dy = q.by - by;
+        if (Math.hypot(dx, dy) < 74) { ok = false; break; }
       }
-      agg[pIdx]+=prob;
+      if (!ok) continue;
+      nodes.push({
+        bx, by,
+        x: bx + rand(-30, 30),
+        y: by + rand(-30, 30),
+        r: rand(10, 15),
+        p1: rand(0, TAU), p2: rand(0, TAU), p3: rand(0, TAU),
+        f1: rand(0.24, 0.42), f2: rand(0.18, 0.34), f3: rand(0.5, 0.9),
+        amp: rand(7, 15),
+        energy: 0,
+        charge: 0,
+        glow: rand(0, TAU)
+      });
     }
+
+    edges = [];
+    const seen = new Set();
+    nodes.forEach((nd, i) => {
+      const dists = nodes
+        .map((q, j) => ({ j, d: Math.hypot(q.bx - nd.bx, q.by - nd.by) }))
+        .filter((o) => o.j !== i)
+        .sort((a, b) => a.d - b.d)
+        .slice(0, 3);
+      dists.forEach((o, k) => {
+        if (k === 2 && Math.random() < 0.4) return;
+        const a = Math.min(i, o.j);
+        const b = Math.max(i, o.j);
+        const key = a + ':' + b;
+        if (seen.has(key)) return;
+        seen.add(key);
+        edges.push({
+          a, b,
+          energy: 0,
+          memory: rand(0.2, 0.45),
+          phase: rand(0, TAU),
+          curve: rand(-16, 16)
+        });
+      });
+    });
+
+    pulses = [];
+    ripples = [];
+    ambientIn = rand(2.5, 4.5);
   }
-  const tot=agg.reduce((a,b)=>a+b,0);
-  if(tot===0) return unconstrained(ps);
-  return agg.map(a=>a/tot);
-}
-function intrinsicDifference(p,q){
-  let tot=0;
-  for(let i=0;i<p.length;i++){
-    const pi=p[i], qi=q[i];
-    if(pi===0) continue;
-    if(qi===0){ tot+= pi*20; continue; }
-    tot+= pi*Math.log2(pi/qi);
-  }
-  if(tot<0 && tot>-1e-12) return 0;
-  return tot;
-}
-function bipartitions(n){
-  const units=[...Array(n).keys()];
-  const res=[];
-  const seen=new Set();
-  for(let r=1;r<n;r++){
-    for(const comb of combinations(units,r)){
-      const other=units.filter(u=>!comb.includes(u));
-      const key=[comb.slice().sort(), other.slice().sort()].sort().toString();
-      const fs=[new Set(comb), new Set(other)].toString();
-      // dedup unordered
-      const k=comb.slice().sort().join(',')+'|'+other.slice().sort().join(',');
-      const rk=other.slice().sort().join(',')+'|'+comb.slice().sort().join(',');
-      if(seen.has(k)||seen.has(rk)) continue;
-      seen.add(k);
-      res.push([comb, other]);
+
+  function neighborsOf(i) {
+    const out = [];
+    for (const e of edges) {
+      if (e.a === i) out.push({ e, other: e.b });
+      else if (e.b === i) out.push({ e, other: e.a });
     }
+    return out;
   }
-  return res;
-}
-function* combinations(arr,r){
-  if(r===0){ yield []; return; }
-  for(let i=0;i<=arr.length-r;i++){
-    for(const tail of combinations(arr.slice(i+1), r-1)){
-      yield [arr[i], ...tail];
-    }
+
+  function ensureAudio() {
+    if (audio) return audio;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    audio = new AC();
+    return audio;
   }
-}
-function reorderProduct(p1,p2,part1,part2,purview){
-  const n=purview.length;
-  const pos={}; purview.forEach((node,i)=>pos[node]=i);
-  const res=Array(1<<n).fill(0);
-  for(let g=0; g<(1<<n); g++){
-    const bits=Array.from({length:n},(_,i)=>(g>>i)&1);
-    let i1=0,i2=0;
-    part1.forEach((node,j)=>{ if(bits[pos[node]]) i1|=(1<<j); });
-    part2.forEach((node,j)=>{ if(bits[pos[node]]) i2|=(1<<j); });
-    res[g]=p1[i1]*p2[i2];
+
+  function plink(i, big) {
+    if (!soundOn) return;
+    const ac = ensureAudio();
+    if (!ac) return;
+    if (ac.state === 'suspended') ac.resume();
+    const f = NOTES[i % NOTES.length] * (big ? 0.5 : 1);
+    const o = ac.createOscillator();
+    const g = ac.createGain();
+    o.type = 'sine';
+    o.frequency.value = f;
+    const v = big ? 0.16 : 0.09;
+    const now = ac.currentTime;
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(v, now + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + (big ? 1.6 : 1.0));
+    o.connect(g).connect(ac.destination);
+    o.start(now);
+    o.stop(now + 1.8);
   }
-  const s=res.reduce((a,b)=>a+b,0);
-  return s?res.map(r=>r/s):res;
-}
-function smallPhi(tpm, state, mechanism, purview){
-  if(purview.length<2 || mechanism.length<2){
-    if(mechanism.length===1 && purview.length===1){
-      const ca=causeRepertoire(tpm,state,mechanism,purview);
-      const un=unconstrained(1);
-      return intrinsicDifference(ca,un)*0.3;
-    }
-    return 0;
-  }
-  const caInt=causeRepertoire(tpm,state,mechanism,purview);
-  const efInt=effectRepertoire(tpm,state,mechanism,purview);
-  let bestC=Infinity,bestE=Infinity;
-  const aligned= new Set(mechanism).size===new Set(purview).size && mechanism.every(v=>purview.includes(v));
-  if(aligned){
-    for(let r=1;r<purview.length;r++){
-      for(const comb of combinations(purview,r)){
-        const p1=comb, p2=purview.filter(x=>!p1.includes(x));
-        const m1=p1,m2=p2;
-        const ca1=causeRepertoire(tpm,state,m1,p1), ca2=causeRepertoire(tpm,state,m2,p2);
-        const pc=reorderProduct(ca1,ca2,p1,p2,purview);
-        bestC=Math.min(bestC, intrinsicDifference(caInt,pc));
-        const ef1=effectRepertoire(tpm,state,m1,p1), ef2=effectRepertoire(tpm,state,m2,p2);
-        const pe=reorderProduct(ef1,ef2,p1,p2,purview);
-        bestE=Math.min(bestE, intrinsicDifference(efInt,pe));
+
+  function fire(i, strength, depth) {
+    const nd = nodes[i];
+    if (!nd) return;
+    nd.energy = clamp(nd.energy + 0.65 * strength, 0, 1.6);
+    plink(i, strength > 1.2);
+    const nbs = neighborsOf(i);
+    for (const { e, other } of nbs) {
+      e.energy = clamp(e.energy + 0.7 * strength, 0, 1.6);
+      e.memory = clamp(e.memory + 0.08 * strength, 0.25, 1);
+      if (depth > 3) continue;
+      if (Math.random() < 0.92) {
+        pulses.push({
+          e, from: i, to: other,
+          t: 0,
+          speed: rand(190, 260),
+          strength: strength * rand(0.72, 0.9),
+          depth: depth + 1
+        });
       }
     }
-  } else {
-    for(let r=1;r<purview.length;r++){
-      for(const comb of combinations(purview,r)){
-        const p1=comb, p2=purview.filter(x=>!p1.includes(x));
-        const ca1=causeRepertoire(tpm,state,mechanism,p1), ca2=causeRepertoire(tpm,state,mechanism,p2);
-        const pc=reorderProduct(ca1,ca2,p1,p2,purview);
-        bestC=Math.min(bestC, intrinsicDifference(caInt,pc));
-        const ef1=effectRepertoire(tpm,state,mechanism,p1), ef2=effectRepertoire(tpm,state,mechanism,p2);
-        const pe=reorderProduct(ef1,ef2,p1,p2,purview);
-        bestE=Math.min(bestE, intrinsicDifference(efInt,pe));
+    if (pulses.length > 140) pulses.splice(0, pulses.length - 140);
+  }
+
+  function edgeGeom(e, t) {
+    const a = nodes[e.a];
+    const b = nodes[e.b];
+    const mx = (a.x + b.x) * 0.5;
+    const my = (a.y + b.y) * 0.5;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len;
+    const ny = dx / len;
+    const bow = e.curve + Math.sin(t * 0.6 + e.phase) * 10;
+    return { ax: a.x, ay: a.y, bx: b.x, by: b.y, cx: mx + nx * bow, cy: my + ny * bow, len };
+  }
+
+  function qpoint(g, t) {
+    const u = 1 - t;
+    return {
+      x: u * u * g.ax + 2 * u * t * g.cx + t * t * g.bx,
+      y: u * u * g.ay + 2 * u * t * g.cy + t * t * g.by
+    };
+  }
+
+  let drag = null;
+  let downAt = 0;
+  let downPos = null;
+  let downNode = -1;
+
+  function hitNode(x, y) {
+    let best = -1;
+    let bd = 1e9;
+    nodes.forEach((nd, i) => {
+      const d = Math.hypot(nd.x - x, nd.y - y);
+      const hit = nd.r + 22;
+      if (d < hit && d < bd) { bd = d; best = i; }
+    });
+    return best;
+  }
+
+  canvas.addEventListener('pointerdown', (ev) => {
+    canvas.setPointerCapture(ev.pointerId);
+    const x = ev.clientX;
+    const y = ev.clientY;
+    downAt = performance.now();
+    downPos = { x, y };
+    downNode = hitNode(x, y);
+    if (downNode >= 0) {
+      drag = { i: downNode, x, y, moved: false };
+      nodes[downNode].charge = 0.0001;
+    } else {
+      ripples.push({ x, y, r: 6, a: 0.5, w: 1 });
+      let bi = 0;
+      let bd = 1e9;
+      nodes.forEach((nd, i) => {
+        const d = Math.hypot(nd.x - x, nd.y - y);
+        if (d < bd) { bd = d; bi = i; }
+      });
+      if (nodes[bi] && bd < 260) {
+        nodes[bi].energy = clamp(nodes[bi].energy + 0.25, 0, 1.2);
       }
     }
+  });
+
+  canvas.addEventListener('pointermove', (ev) => {
+    if (!drag) return;
+    const dx = ev.clientX - downPos.x;
+    const dy = ev.clientY - downPos.y;
+    if (Math.hypot(dx, dy) > 7) drag.moved = true;
+    drag.x = ev.clientX;
+    drag.y = ev.clientY;
+  });
+
+  function release(ev) {
+    if (drag) {
+      const nd = nodes[drag.i];
+      const held = (performance.now() - downAt) / 1000;
+      const ch = nd ? nd.charge : 0;
+      if (nd) {
+        if (ch > 0.35 || held > 0.55) {
+          fire(drag.i, 1 + ch * 1.6, 0);
+          ripples.push({ x: nd.x, y: nd.y, r: nd.r, a: 0.65, w: 2.2 });
+        } else {
+          fire(drag.i, 0.9, 0);
+          ripples.push({ x: nd.x, y: nd.y, r: nd.r * 0.7, a: 0.4, w: 1.2 });
+        }
+        nd.charge = 0;
+      }
+      drag = null;
+      downNode = -1;
+      return;
+    }
+    if (ev && downPos && downNode < 0) {
+      ripples.push({ x: ev.clientX, y: ev.clientY, r: 4, a: 0.3, w: 1 });
+    }
+    downNode = -1;
   }
-  if(!isFinite(bestC)) bestC=0;
-  if(!isFinite(bestE)) bestE=0;
-  return Math.min(bestC,bestE);
-}
-function bigPhi(tpm, state){
-  const n=state.length;
-  if(n<2) return [0,{partition:[[],[]],method:'exhaustive'}];
-  const all=[...Array(n).keys()];
-  const caInt=causeRepertoire(tpm,state,all,all);
-  const efInt=effectRepertoire(tpm,state,all,all);
-  let best=Infinity, bestPart=[[],[]];
-  for(const [a,b] of bipartitions(n)){
-    const caA=causeRepertoire(tpm,state,a,a), caB=causeRepertoire(tpm,state,b,b);
-    const pc=reorderProduct(caA,caB,a,b,all);
-    const efA=effectRepertoire(tpm,state,a,a), efB=effectRepertoire(tpm,state,b,b);
-    const pe=reorderProduct(efA,efB,a,b,all);
-    const cand=Math.min(intrinsicDifference(caInt,pc), intrinsicDifference(efInt,pe));
-    if(cand<best){ best=cand; bestPart=[a,b]; }
-  }
-  if(!isFinite(best)) best=0;
-  return [best,{partition:bestPart,method:'exhaustive'}];
-}
-function conceptualStructure(tpm, state){
-  const n=state.length;
-  const concepts=[];
-  for(let r=1;r<=n;r++){
-    for(const mech of combinations([...Array(n).keys()],r)){
-      let best=0,bestP=null,bc=null,be=null;
-      for(let pr=1;pr<=n;pr++){
-        for(const pur of combinations([...Array(n).keys()],pr)){
-          const phi=smallPhi(tpm,state,mech,pur);
-          if(phi>best){ best=phi; bestP=pur; bc=causeRepertoire(tpm,state,mech,pur); be=effectRepertoire(tpm,state,mech,pur); }
+
+  canvas.addEventListener('pointerup', release);
+  canvas.addEventListener('pointercancel', release);
+
+  bPause.addEventListener('click', () => {
+    paused = !paused;
+    bPause.classList.toggle('is-alt', paused);
+    bPause.setAttribute('aria-pressed', String(paused));
+    if (!paused) last = performance.now();
+  });
+
+  bNew.addEventListener('click', () => {
+    fadeTarget = 0;
+    setTimeout(() => {
+      newGarden();
+      fadeTarget = 1;
+    }, 320);
+  });
+
+  bSound.addEventListener('click', () => {
+    soundOn = !soundOn;
+    bSound.classList.toggle('is-alt', soundOn);
+    bSound.setAttribute('aria-pressed', String(soundOn));
+    if (soundOn) {
+      ensureAudio();
+      const i = Math.floor(rand(0, nodes.length));
+      if (nodes[i]) fire(i, 0.7, 2);
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    resize();
+    for (const nd of nodes) {
+      nd.bx = clamp(nd.bx, 50, W - 50);
+      nd.by = clamp(nd.by, 50, H - 90);
+    }
+  });
+
+  function step(now) {
+    requestAnimationFrame(step);
+    let dt = (now - last) / 1000;
+    last = now;
+    dt = clamp(dt, 0.001, 0.05);
+    if (paused) return;
+
+    tGlobal += dt;
+    const t = tGlobal;
+    fade += (fadeTarget - fade) * smooth(dt, 5);
+
+    for (const nd of nodes) {
+      const tx = nd.bx + Math.sin(t * nd.f1 * TAU * 0.14 + nd.p1) * nd.amp + Math.sin(t * 0.31 + nd.p2) * nd.amp * 0.35;
+      const ty = nd.by + Math.sin(t * nd.f2 * TAU * 0.14 + nd.p2) * nd.amp + Math.cos(t * 0.27 + nd.p1) * nd.amp * 0.35;
+      nd.x += (tx - nd.x) * smooth(dt, 2.2);
+      nd.y += (ty - nd.y) * smooth(dt, 2.2);
+      nd.energy *= Math.exp(-dt * 1.7);
+      nd.glow += dt;
+    }
+
+    if (drag && nodes[drag.i]) {
+      const nd = nodes[drag.i];
+      nd.x += (drag.x - nd.x) * smooth(dt, 10);
+      nd.y += (drag.y - nd.y) * smooth(dt, 10);
+      const held = (performance.now() - downAt) / 1000;
+      if (held > 0.3) nd.charge = clamp(nd.charge + dt * 0.9, 0, 1);
+    }
+
+    for (const e of edges) {
+      e.energy *= Math.exp(-dt * 2.1);
+      e.memory += (0.32 - e.memory) * smooth(dt, 0.05);
+    }
+
+    for (let i = pulses.length - 1; i >= 0; i -= 1) {
+      const p = pulses[i];
+      const g = edgeGeom(p.e, t);
+      p.t += (dt * p.speed) / Math.max(60, g.len);
+      if (p.t >= 1) {
+        pulses.splice(i, 1);
+        const nd = nodes[p.to];
+        if (nd) {
+          nd.energy = clamp(nd.energy + 0.55 * p.strength, 0, 1.6);
+          p.e.memory = clamp(p.e.memory + 0.1 * p.strength, 0.25, 1);
+          if (nd.energy > 0.5 && p.depth < 3 && Math.random() < 0.55) {
+            fire(p.to, p.strength * 0.82, p.depth + 1);
+          } else {
+            plink(p.to, false);
+          }
         }
       }
-      if(best>1e-9) concepts.push({mechanism:mech,purview:bestP,phi:best,cause:bc,effect:be});
     }
-  }
-  return concepts;
-}
-function findComplexes(tpm, state){
-  const n=state.length;
-  const cands=[];
-  for(let r=1;r<=n;r++){
-    for(const subset of combinations([...Array(n).keys()],r)){
-      const subTpm=extractSubTPM(tpm,subset,n);
-      const subState=subset.map(i=>state[i]);
-      const [phi,mip]=bigPhi(subTpm,subState);
-      cands.push({units:subset,phi,mip});
+
+    ambientIn -= dt;
+    if (ambientIn <= 0) {
+      ambientIn = rand(3.5, 7);
+      const i = Math.floor(rand(0, nodes.length));
+      if (nodes[i] && pulses.length < 24) fire(i, rand(0.35, 0.6), 3);
     }
+
+    for (let i = ripples.length - 1; i >= 0; i -= 1) {
+      const r = ripples[i];
+      r.r += dt * 130;
+      r.a *= Math.exp(-dt * 2.4);
+      if (r.a < 0.015) ripples.splice(i, 1);
+    }
+
+    draw(t);
   }
-  cands.sort((a,b)=>b.phi-a.phi);
-  const complexes=[];
-  for(const c of cands){
-    if(c.phi<=1e-9) continue;
-    if(complexes.some(e=>e.units.some(u=>c.units.includes(u)))) continue;
-    complexes.push(c);
-  }
-  return complexes;
-}
-function extractSubTPM(tpm, subset, nFull){
-  const k=subset.length, size=1<<k;
-  const sub=[];
-  for(let subIdx=0; subIdx<size; subIdx++){
-    const tot=Array(k).fill(0);
-    let cnt=0;
-    for(let full=0; full<(1<<nFull); full++){
-      let ok=true;
-      for(let j=0;j<k;j++){
-        const node=subset[j], b=(subIdx>>j)&1, fb=(full>>node)&1;
-        if(b!==fb){ ok=false; break; }
+
+  function draw(t) {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#f6f3ec';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = clamp(fade, 0, 1);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    for (const e of edges) {
+      const g = edgeGeom(e, t);
+      const warm = clamp(e.energy * 0.9 + e.memory * 0.45, 0, 1);
+      const rC = Math.round(lerp(217, 226, warm));
+      const gC = Math.round(lerp(214, 160, warm));
+      const bC = Math.round(lerp(208, 107, warm));
+      ctx.strokeStyle = 'rgba(' + rC + ',' + gC + ',' + bC + ',' + (0.42 + warm * 0.4).toFixed(3) + ')';
+      ctx.lineWidth = 1 + e.memory * 0.9 + e.energy * 2.4;
+      ctx.beginPath();
+      ctx.moveTo(g.ax, g.ay);
+      ctx.quadraticCurveTo(g.cx, g.cy, g.bx, g.by);
+      ctx.stroke();
+      if (e.energy > 0.06) {
+        ctx.strokeStyle = 'rgba(226,160,107,' + (e.energy * 0.18).toFixed(3) + ')';
+        ctx.lineWidth = 9 + e.energy * 7;
+        ctx.beginPath();
+        ctx.moveTo(g.ax, g.ay);
+        ctx.quadraticCurveTo(g.cx, g.cy, g.bx, g.by);
+        ctx.stroke();
       }
-      if(!ok) continue;
-      const row=tpm[full];
-      for(let j=0;j<k;j++) tot[j]+=row[subset[j]];
-      cnt++;
     }
-    sub.push(cnt? tot.map(v=>v/cnt) : Array(k).fill(0.5));
-  }
-  return sub;
-}
-// UI
-function renderMatrix(){
-  const el=document.getElementById('matrix');
-  el.innerHTML='';
-  const head=document.createElement('div'); head.className='r';
-  head.innerHTML='<span></span>'+[...Array(N).keys()].map(i=>`<span>${i}</span>`).join('');
-  el.appendChild(head);
-  for(let i=0;i<N;i++){
-    const row=document.createElement('div'); row.className='r';
-    row.innerHTML=`<span>${i}</span>`+ [...Array(N).keys()].map(j=>{
-      const on=conn[i][j];
-      return `<div class="cell ${on?'on':''}" onclick="toggleConn(${i},${j})">${on?'1':'0'}</div>`;
-    }).join('');
-    el.appendChild(row);
-  }
-  document.getElementById('infoEdges').textContent='edges: '+conn.flat().reduce((a,b)=>a+b,0);
-}
-function renderGates(){
-  const el=document.getElementById('gates');
-  el.innerHTML='';
-  for(let i=0;i<N;i++){
-    const wrap=document.createElement('div');
-    wrap.innerHTML=`<label>Node ${i}</label><select onchange="setGate(${i},this.value)">${GATE_OPTS.map(g=>`<option ${g===gates[i]?'selected':''}>${g}</option>`).join('')}</select>`;
-    el.appendChild(wrap);
-  }
-  document.getElementById('infoGates').textContent='gates: '+gates.join(',');
-}
-function renderNodes(){
-  const el=document.getElementById('nodes');
-  el.innerHTML='';
-  for(let i=0;i<N;i++){
-    const d=document.createElement('div');
-    d.className='node '+(state[i]?'on':'off');
-    d.textContent=i;
-    d.title='Node '+i+' state '+state[i]+' gate '+gates[i];
-    d.onclick=()=>{ state[i]^=1; renderNodes(); drawGraph(); if(autoCompute) compute(); };
-    el.appendChild(d);
-  }
-  document.getElementById('stateStr').textContent='('+state.join(',')+')';
-}
-function drawGraph(){
-  const c=document.getElementById('graph'), ctx=c.getContext('2d');
-  ctx.clearRect(0,0,c.width,c.height);
-  const cx=c.width/2, cy=c.height/2, R=110;
-  const pos=Array.from({length:N},(_,i)=>{
-    const ang=(i/N)*Math.PI*2 - Math.PI/2;
-    return [cx+Math.cos(ang)*R, cy+Math.sin(ang)*R];
-  });
-  // edges
-  ctx.lineWidth=1.2;
-  for(let i=0;i<N;i++) for(let j=0;j<N;j++) if(conn[i][j]){
-    const [x1,y1]=pos[j], [x2,y2]=pos[i];
-    ctx.strokeStyle=state[j]?'#5b7cff':'#2a2f3f';
-    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-    // arrow
-    const ang=Math.atan2(y2-y1,x2-x1), len=Math.hypot(x2-x1,y2-y1);
-    if(len>40){
-      const mx=(x1+x2)/2, my=(y1+y2)/2;
-      ctx.fillStyle=state[j]?'#5b7cff':'#9aa0b2';
-      ctx.beginPath(); ctx.arc(mx,my,3,0,Math.PI*2); ctx.fill();
+
+    for (const p of pulses) {
+      const g = edgeGeom(p.e, t);
+      const pos = qpoint(g, clamp(p.t, 0, 1));
+      const pr = 5 + p.strength * 5 + Math.sin(t * 9 + p.t * 12) * 1.2;
+      const halo = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, pr * 3.2);
+      halo.addColorStop(0, 'rgba(255,255,255,.95)');
+      halo.addColorStop(0.35, 'rgba(255,214,170,.75)');
+      halo.addColorStop(1, 'rgba(255,214,170,0)');
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, pr * 3.2, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = '#fffdf9';
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, 3.4 + p.strength * 1.6, 0, TAU);
+      ctx.fill();
     }
-  }
-  // nodes
-  pos.forEach(([x,y],i)=>{
-    ctx.fillStyle=state[i]?'#2b5cff':'#232738';
-    ctx.strokeStyle=state[i]?'#5b7cff':'#2a2f3f';
-    ctx.lineWidth=2;
-    ctx.beginPath(); ctx.arc(x,y,26,0,Math.PI*2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle=state[i]?'white':'#9aa0b2';
-    ctx.font='12px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText('N'+i+' '+gates[i], x, y-6);
-    ctx.fillText(state[i]?'1':'0', x, y+10);
-  });
-}
-function drawQualia(concepts){
-  const c=document.getElementById('qualia'), ctx=c.getContext('2d');
-  ctx.clearRect(0,0,c.width,c.height);
-  if(!concepts.length){ ctx.fillStyle='#9aa0b2'; ctx.font='12px system-ui'; ctx.fillText('No concepts (phi=0)',20,120); return; }
-  // project each concept to 2D: x = mechanism bits, y = purview bits, size = phi
-  concepts.forEach((co,idx)=>{
-    const x= 40 + (co.mechanism.reduce((a,v)=>a+v,0)/N)* (c.width-80) + (Math.random()-0.5)*10;
-    const y= 30 + (co.purview.reduce((a,v)=>a+v,0)/N)* (c.height-60) + (idx%3)*12;
-    const r= 4 + co.phi*6;
-    ctx.fillStyle='#2b5cff';
-    ctx.globalAlpha=0.6;
-    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
-    ctx.globalAlpha=1;
-    ctx.fillStyle='#e6e6e6'; ctx.font='10px monospace';
-    ctx.fillText(co.mechanism.join('')+'->'+co.purview.join(''), x+8, y);
-  });
-  // relations: lines between overlapping purviews
-  ctx.strokeStyle='#2a2f3f'; ctx.lineWidth=0.8;
-  for(let i=0;i<concepts.length;i++) for(let j=i+1;j<concepts.length;j++){
-    const a=concepts[i], b=concepts[j];
-    if(a.purview.some(v=>b.purview.includes(v))){
-      // draw faint link
-    }
-  }
-}
-function toggleConn(i,j){ conn[i][j]^=1; renderMatrix(); drawGraph(); if(autoCompute) compute(); }
-function setGate(i,val){ gates[i]=val; renderNodes(); drawGraph(); if(autoCompute) compute(); updatePresetInfo(); }
-function updateNoise(v){ noise=parseFloat(v); document.getElementById('noiseVal').textContent=noise.toFixed(2); if(autoCompute) compute(); }
-function randomState(){ state=state.map(()=>Math.random()>0.5?1:0); renderNodes(); drawGraph(); if(autoCompute) compute(); }
-function flipAll(){ state=state.map(v=>v^1); renderNodes(); drawGraph(); if(autoCompute) compute(); }
-function preset(name){
-  if(name==='het'){
-    conn=[[1,0,0,0,1],[0,0,1,0,1],[0,1,0,0,0],[1,0,0,0,1],[0,1,0,1,0]];
-    gates=['OR','MAJORITY','AND','MAJORITY','OR']; state=[1,0,1,0,1];
-  } else if(name==='clique'){
-    conn=Array.from({length:N},()=>Array(N).fill(1)); gates=Array(N).fill('MAJORITY'); state=[1,0,1,0,1];
-  } else if(name==='lattice'){
-    conn=Array.from({length:N},()=>Array(N).fill(0));
-    for(let i=0;i<N;i++){ conn[i][i]=1; conn[i][(i+1)%N]=1; conn[i][(i-1+N)%N]=1; }
-    gates=Array(N).fill('COPY'); state=[1,0,1,0,1];
-  } else if(name==='disconn'){
-    conn=Array.from({length:N},(_,i)=>Array.from({length:N},(_,j)=>i===j?1:0)); gates=Array(N).fill('COPY'); state=[1,0,1,0,1];
-  } else if(name==='random'){
-    conn=Array.from({length:N},()=>Array(N).fill(0));
-    for(let i=0;i<N;i++){ for(let j=0;j<N;j++) if(Math.random()<0.4) conn[i][j]=1; if(conn[i].every(v=>v===0)) conn[i][Math.floor(Math.random()*N)]=1; }
-    gates=Array.from({length:N},()=>GATE_OPTS[Math.floor(Math.random()*GATE_OPTS.length)]); state=Array.from({length:N},()=>Math.random()>0.5?1:0);
-  }
-  noise=0; document.getElementById('noise').value=0; document.getElementById('noiseVal').textContent='0.00';
-  renderMatrix(); renderGates(); renderNodes(); drawGraph(); updatePresetInfo(); compute();
-}
-function updatePresetInfo(){
-  const edges=conn.flat().reduce((a,b)=>a+b,0);
-  document.getElementById('presetInfo').textContent=`n=${N} edges=${edges} gates=[${gates.join(',')}] state=(${state.join(',')})`;
-}
-function compute(){
-  const tpm=expandTPM(conn,gates,noise);
-  const [phi,mip]=bigPhi(tpm,state);
-  document.getElementById('bigPhi').textContent=phi.toFixed(4);
-  document.getElementById('bigMip').textContent='MIP: ('+mip.partition[0].join(',')+') | ('+mip.partition[1].join(',')+')';
-  document.getElementById('phiFill').style.width=Math.min(100, phi*40)+'%';
-  document.getElementById('phiExplain').textContent= phi===0 ? 'A=0: split loses no power - two things side by side, not one.' : 'A>0: every split loses cause-effect power - one irreducible whole.';
-  // small phi
-  const small=[];
-  for(let r=1;r<=N;r++){
-    for(const mech of combinations([...Array(N).keys()],r)){
-      let best=0,bestP=null;
-      for(let pr=1;pr<=N;pr++) for(const pur of combinations([...Array(N).keys()],pr)){
-        const v=smallPhi(tpm,state,mech,pur);
-        if(v>best){ best=v; bestP=pur; }
+
+    for (const nd of nodes) {
+      const breathe = 1 + Math.sin(t * nd.f3 * TAU * 0.22 + nd.p3) * 0.045;
+      const ch = nd.charge || 0;
+      const R = nd.r * breathe * (1 + ch * 0.55);
+      const eg = clamp(nd.energy, 0, 1.4);
+
+      if (eg > 0.02) {
+        const gr = R * (2.6 + Math.sin(nd.glow * 3.1) * 0.25);
+        const glow = ctx.createRadialGradient(nd.x, nd.y, R * 0.4, nd.x, nd.y, gr);
+        glow.addColorStop(0, 'rgba(255,205,150,' + (0.55 * Math.min(1, eg)).toFixed(3) + ')');
+        glow.addColorStop(0.55, 'rgba(255,214,170,' + (0.22 * Math.min(1, eg)).toFixed(3) + ')');
+        glow.addColorStop(1, 'rgba(255,214,170,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(nd.x, nd.y, gr, 0, TAU);
+        ctx.fill();
       }
-      if(best>1e-9) small.push({mech,bestP,phi:best});
+
+      ctx.save();
+      ctx.shadowColor = 'rgba(90,80,70,.16)';
+      ctx.shadowBlur = 18;
+      ctx.shadowOffsetY = 7;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(nd.x, nd.y, R, 0, TAU);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.strokeStyle = eg > 0.25 ? 'rgba(226,160,107,.75)' : 'rgba(60,55,50,.10)';
+      ctx.lineWidth = eg > 0.25 ? 1.8 : 1.2;
+      ctx.beginPath();
+      ctx.arc(nd.x, nd.y, R, 0, TAU);
+      ctx.stroke();
+
+      const coreA = clamp(0.25 + eg * 0.75, 0, 1);
+      const coreR = R * (0.34 + Math.min(1, eg) * 0.22 + ch * 0.18);
+      const core = ctx.createRadialGradient(nd.x - coreR * 0.25, nd.y - coreR * 0.3, 0, nd.x, nd.y, coreR);
+      core.addColorStop(0, 'rgba(255,255,255,' + coreA.toFixed(3) + ')');
+      core.addColorStop(0.6, 'rgba(255,211,165,' + (coreA * 0.9).toFixed(3) + ')');
+      core.addColorStop(1, 'rgba(238,170,110,' + (coreA * 0.95).toFixed(3) + ')');
+      ctx.fillStyle = core;
+      ctx.beginPath();
+      ctx.arc(nd.x, nd.y, coreR, 0, TAU);
+      ctx.fill();
+
+      if (ch > 0.02) {
+        ctx.strokeStyle = 'rgba(226,160,107,' + (0.25 + ch * 0.5).toFixed(3) + ')';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(nd.x, nd.y, R + 7 + Math.sin(t * 10) * 2 * ch, 0, TAU);
+        ctx.stroke();
+      }
     }
+
+    for (const rp of ripples) {
+      ctx.strokeStyle = 'rgba(140,132,122,' + rp.a.toFixed(3) + ')';
+      ctx.lineWidth = rp.w;
+      ctx.beginPath();
+      ctx.arc(rp.x, rp.y, rp.r, 0, TAU);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
   }
-  small.sort((a,b)=>b.phi-a.phi);
-  document.getElementById('smallPhi').textContent= small.length? small.slice(0,8).map(s=>`mech [${s.mech}] -> pur [${s.bestP}] phi=${s.phi.toFixed(3)}`).join('\n') : 'All phi=0 (reducible)';
-  // concepts
-  const concepts=conceptualStructure(tpm,state);
-  const el=document.getElementById('concepts');
-  el.innerHTML= concepts.length? concepts.slice(0,12).map(c=>`<div class="concept"><b>[${c.mechanism}]→[${c.purview}]</b> phi=${c.phi.toFixed(3)}<br><span class="mono">cause ${c.cause.slice(0,4).map(v=>v.toFixed(2)).join(' ')}...</span></div>`).join('') : '<div class="mono">No concepts - MICS empty</div>';
-  drawQualia(concepts);
-  // complexes
-  const comps=findComplexes(tpm,state);
-  document.getElementById('complexes').textContent= comps.length? comps.map(c=>`units [${c.units}] phi=${c.phi.toFixed(4)} MIP (${c.mip.partition[0]}|${c.mip.partition[1]})`).join('\n') : 'No complexes (all phi=0, excluded)';
-  // trajectory
-  const trajStates=[[1,0,0,0,0],[1,0,1,0,1],[0,1,0,1,0],[1,1,1,1,1],[0,0,0,0,0]];
-  const traj=trajStates.map(s=>{ const [p]=bigPhi(tpm,s); return `(${s.join(',')}) -> ${p.toFixed(3)}`; }).join('\n');
-  document.getElementById('trajectory').textContent=traj + '\n\nSame wiring, different state = different Phi and different MIP.';
-  updatePresetInfo();
-}
-// init
-renderMatrix(); renderGates(); renderNodes(); drawGraph(); compute();
+
+  resize();
+  newGarden();
+  for (let k = 0; k < 3; k += 1) {
+    ripples.push({ x: W * 0.5 + rand(-60, 60), y: H * 0.42 + rand(-40, 40), r: 8 + k * 14, a: 0.34 - k * 0.08, w: 1.2 });
+  }
+  requestAnimationFrame((n) => { last = n; requestAnimationFrame(step); });
+})();
 </script>
 </body>
 </html>
