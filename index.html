@@ -11,7 +11,6 @@
     --card:rgba(255,255,255,.82);
     --line:rgba(60,55,50,.08);
     --ink:#8a8783;
-    --ink-soft:#b6b1aa;
     --accent:#e2a06b;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -22,21 +21,24 @@
     overflow:hidden;
     overscroll-behavior:none;
     font-family:system-ui,-apple-system,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    min-height:100dvh;
+    user-select:none;
+    -webkit-user-select:none;
   }
-  #stage{
-    position:fixed;
-    inset:0;
-    width:100%;
-    height:100%;
-    display:block;
+  #photo{
+    border-radius:28px;
+    box-shadow:0 18px 44px rgba(90,80,70,.16), 0 3px 10px rgba(90,80,70,.10);
     touch-action:none;
     cursor:pointer;
+    background:#fff;
   }
+  #blocks{display:block;opacity:.9}
   .dock{
-    position:fixed;
-    left:50%;
-    bottom:calc(18px + env(safe-area-inset-bottom));
-    transform:translateX(-50%);
     display:flex;
     gap:12px;
     padding:10px;
@@ -58,529 +60,346 @@
     cursor:pointer;
     padding:0;
     box-shadow:0 4px 14px rgba(90,80,70,.10);
-    transition:transform .35s cubic-bezier(.34,1.56,.64,1), box-shadow .35s ease, background .35s ease;
+    transition:transform .35s cubic-bezier(.34,1.56,.64,1), box-shadow .35s ease;
   }
   .btn:hover{transform:translateY(-1px) scale(1.03);box-shadow:0 8px 20px rgba(90,80,70,.14)}
   .btn:active{transform:scale(.96)}
   .btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
   .btn svg{width:24px;height:24px;stroke:var(--ink);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-  .btn[aria-pressed="true"]{background:#fff7ee;border-color:rgba(226,160,107,.35)}
-  .btn[aria-pressed="true"] svg{stroke:var(--accent)}
-  .btn .alt{display:none}
-  .btn.is-alt .main{display:none}
-  .btn.is-alt .alt{display:block}
-  @media (prefers-reduced-motion:reduce){
-    .btn{transition:none}
-  }
+  #file{display:none}
 </style>
 </head>
 <body>
-<canvas id="stage" aria-label="soft neuron garden"></canvas>
+<canvas id="photo" aria-label="touch the photo"></canvas>
+<canvas id="blocks" aria-hidden="true"></canvas>
 <div class="dock">
-  <button id="bPause" class="btn" aria-label="pause" aria-pressed="false">
-    <svg class="main" viewBox="0 0 24 24"><line x1="9" y1="6" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="18"/></svg>
-    <svg class="alt" viewBox="0 0 24 24"><path d="M8 5.5 C8 5 8.6 4.6 9.1 4.9 L17 10.4 C17.5 10.7 17.5 11.3 17 11.6 L9.1 17.1 C8.6 17.4 8 17 8 16.5 Z"/></svg>
+  <button id="bPrev" class="btn" aria-label="previous">
+    <svg viewBox="0 0 24 24"><path d="M14.5 6 C14.5 6 9 10.2 9 12 C9 13.8 14.5 18 14.5 18"/></svg>
   </button>
-  <button id="bNew" class="btn" aria-label="new">
-    <svg viewBox="0 0 24 24"><path d="M19 12 C19 15.9 15.9 19 12 19 C8.8 19 6 16.8 5.2 13.8"/><path d="M5 12 C5 8.1 8.1 5 12 5 C15.2 5 18 7.2 18.8 10.2"/><path d="M18.8 5.5 L18.8 10.2 L14.2 10.2"/><path d="M5.2 18.5 L5.2 13.8 L9.8 13.8"/></svg>
+  <button id="bUp" class="btn" aria-label="upload">
+    <svg viewBox="0 0 24 24"><path d="M12 16 L12 5.5"/><path d="M7.5 10 L12 5.5 L16.5 10"/><path d="M5 19.5 C5 19.5 7.5 20.5 12 20.5 C16.5 20.5 19 19.5 19 19.5"/></svg>
   </button>
-  <button id="bSound" class="btn" aria-label="sound" aria-pressed="false">
-    <svg class="main" viewBox="0 0 24 24"><path d="M4 9.5 L4 14.5 C4 15 4.4 15.5 5 15.5 L8 15.5 L12.5 19.5 C13 20 13.8 19.6 13.8 18.9 L13.8 5.1 C13.8 4.4 13 4 12.5 4.5 L8 8.5 L5 8.5 C4.4 8.5 4 9 4 9.5 Z"/><line x1="16.5" y1="9.5" x2="20.5" y2="14.5"/><line x1="20.5" y1="9.5" x2="16.5" y2="14.5"/></svg>
-    <svg class="alt" viewBox="0 0 24 24"><path d="M4 9.5 L4 14.5 C4 15 4.4 15.5 5 15.5 L8 15.5 L12.5 19.5 C13 20 13.8 19.6 13.8 18.9 L13.8 5.1 C13.8 4.4 13 4 12.5 4.5 L8 8.5 L5 8.5 C4.4 8.5 4 9 4 9.5 Z"/><path d="M16.2 9.2 C17.3 10.3 17.3 13.7 16.2 14.8"/><path d="M18.6 7 C20.7 9.1 20.7 14.9 18.6 17"/></svg>
+  <button id="bNext" class="btn" aria-label="next">
+    <svg viewBox="0 0 24 24"><path d="M9.5 6 C9.5 6 15 10.2 15 12 C15 13.8 9.5 18 9.5 18"/></svg>
   </button>
 </div>
-<script>
-(() => {
-  const canvas = document.getElementById('stage');
-  const ctx = canvas.getContext('2d');
-  const bPause = document.getElementById('bPause');
-  const bNew = document.getElementById('bNew');
-  const bSound = document.getElementById('bSound');
+<input id="file" type="file" accept="image/*">
+<script type="module">
+import { AutoModel, AutoImageProcessor } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0';
+import { slicePatchTokens, normalizeRows, similarityMap, pointToCell, simToAlpha } from './touch.js';
 
-  const TAU = Math.PI * 2;
-  const rand = (a, b) => a + Math.random() * (b - a);
-  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const lerp = (a, b, t) => a + (b - a) * t;
-  const smooth = (dt, s) => 1 - Math.exp(-dt * s);
+const MODEL = 'onnx-community/dinov3-vits16-pretrain-lvd1689m-ONNX';
+const N_BLOCKS = 12;
+const SAMPLES = ['images/dog.jpg', 'images/cats.jpg', 'images/chonk.jpg'];
 
-  let W = 0, H = 0, DPR = 1;
-  let nodes = [];
-  let edges = [];
-  let pulses = [];
-  let ripples = [];
-  let paused = false;
-  let soundOn = false;
-  let fade = 1;
-  let fadeTarget = 1;
-  let last = performance.now();
-  let tGlobal = rand(0, 100);
-  let ambientIn = 3;
-  let audio = null;
+const photo = document.getElementById('photo');
+const pctx = photo.getContext('2d');
+const strip = document.getElementById('blocks');
+const sctx = strip.getContext('2d');
+const bPrev = document.getElementById('bPrev');
+const bNext = document.getElementById('bNext');
+const bUp = document.getElementById('bUp');
+const file = document.getElementById('file');
 
-  const NOTES = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66];
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const smooth = (dt, s) => 1 - Math.exp(-dt * s);
+const rand = (a, b) => a + Math.random() * (b - a);
 
-  function resize() {
-    DPR = Math.min(2, window.devicePixelRatio || 1);
-    W = window.innerWidth;
-    H = window.innerHeight;
-    canvas.width = Math.floor(W * DPR);
-    canvas.height = Math.floor(H * DPR);
-    canvas.style.width = W + 'px';
-    canvas.style.height = H + 'px';
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+let side = 300;
+let DPR = 1;
+let square = document.createElement('canvas'); // square-cropped source photo
+let feats = null; // normalized patch features
+let grid = 0;
+let dim = 0;
+let target = null;
+let shown = null;
+let tapped = -1;
+let ready = false; // model + features for current photo
+let modelLoading = true;
+let loadFrac = 0;
+let sweep = -1; // inference sweep position, -1 idle
+let ripples = [];
+let sampleIdx = 0;
+let customURL = null;
+let tGlobal = rand(0, 100);
+let last = performance.now();
+const sim = document.createElement('canvas'); // low-res glow map
+
+function rr(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r);
+  c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r);
+  c.arcTo(x, y, x + w, y, r);
+  c.closePath();
+}
+
+function resize() {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  side = Math.max(240, Math.min(window.innerWidth - 32, window.innerHeight - 230, 560));
+  photo.width = Math.floor(side * DPR);
+  photo.height = Math.floor(side * DPR);
+  photo.style.width = side + 'px';
+  photo.style.height = side + 'px';
+  pctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const sw = N_BLOCKS * 22;
+  strip.width = Math.floor(sw * DPR);
+  strip.height = Math.floor(14 * DPR);
+  strip.style.width = sw + 'px';
+  strip.style.height = '14px';
+  sctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+
+function drawBase() {
+  pctx.clearRect(0, 0, side, side);
+  pctx.save();
+  rr(pctx, 0, 0, side, side, 28);
+  pctx.clip();
+  if (square.width > 0) {
+    pctx.drawImage(square, 0, 0, side, side);
+  } else {
+    pctx.fillStyle = '#ffffff';
+    pctx.fillRect(0, 0, side, side);
   }
-
-  function nearestCount() {
-    if (W < 620) return 12;
-    if (W < 1100) return 16;
-    return 19;
+  // breathing veil while the brain is busy
+  if (!ready) {
+    const a = 0.10 + 0.06 * Math.sin(tGlobal * 2.2);
+    pctx.fillStyle = 'rgba(255,255,255,' + a.toFixed(3) + ')';
+    pctx.fillRect(0, 0, side, side);
   }
+  pctx.restore();
+}
 
-  function newGarden() {
-    const n = nearestCount();
-    const cx = W * 0.5;
-    const cy = H * 0.46;
-    const rx = Math.min(W * 0.36, 420);
-    const ry = Math.min(H * 0.30, 320);
-    nodes = [];
-    let guard = 0;
-    while (nodes.length < n && guard < 900) {
-      guard += 1;
-      const a = rand(0, TAU);
-      const rr = Math.sqrt(Math.random());
-      const bx = cx + Math.cos(a) * rr * rx + rand(-18, 18);
-      const by = cy + Math.sin(a) * rr * ry + rand(-18, 18);
-      let ok = true;
-      for (const q of nodes) {
-        const dx = q.bx - bx;
-        const dy = q.by - by;
-        if (Math.hypot(dx, dy) < 74) { ok = false; break; }
-      }
-      if (!ok) continue;
-      nodes.push({
-        bx, by,
-        x: bx + rand(-30, 30),
-        y: by + rand(-30, 30),
-        r: rand(10, 15),
-        p1: rand(0, TAU), p2: rand(0, TAU), p3: rand(0, TAU),
-        f1: rand(0.24, 0.42), f2: rand(0.18, 0.34), f3: rand(0.5, 0.9),
-        amp: rand(7, 15),
-        energy: 0,
-        charge: 0,
-        glow: rand(0, TAU)
-      });
-    }
-
-    edges = [];
-    const seen = new Set();
-    nodes.forEach((nd, i) => {
-      const dists = nodes
-        .map((q, j) => ({ j, d: Math.hypot(q.bx - nd.bx, q.by - nd.by) }))
-        .filter((o) => o.j !== i)
-        .sort((a, b) => a.d - b.d)
-        .slice(0, 3);
-      dists.forEach((o, k) => {
-        if (k === 2 && Math.random() < 0.4) return;
-        const a = Math.min(i, o.j);
-        const b = Math.max(i, o.j);
-        const key = a + ':' + b;
-        if (seen.has(key)) return;
-        seen.add(key);
-        edges.push({
-          a, b,
-          energy: 0,
-          memory: rand(0.2, 0.45),
-          phase: rand(0, TAU),
-          curve: rand(-16, 16)
-        });
-      });
-    });
-
-    pulses = [];
-    ripples = [];
-    ambientIn = rand(2.5, 4.5);
+function paintGlow() {
+  if (!feats || !shown) return;
+  sim.width = grid;
+  sim.height = grid;
+  const g = sim.getContext('2d');
+  const img = g.createImageData(grid, grid);
+  for (let i = 0; i < shown.length; i += 1) {
+    const a = i === tapped ? 1 : simToAlpha(shown[i]);
+    const o = i * 4;
+    img.data[o] = 226;
+    img.data[o + 1] = 160;
+    img.data[o + 2] = 107;
+    img.data[o + 3] = Math.floor(a * 200);
   }
-
-  function neighborsOf(i) {
-    const out = [];
-    for (const e of edges) {
-      if (e.a === i) out.push({ e, other: e.b });
-      else if (e.b === i) out.push({ e, other: e.a });
-    }
-    return out;
+  g.putImageData(img, 0, 0);
+  pctx.save();
+  rr(pctx, 0, 0, side, side, 28);
+  pctx.clip();
+  pctx.imageSmoothingEnabled = true;
+  pctx.drawImage(sim, 0, 0, side, side);
+  if (tapped >= 0) {
+    const gx = tapped % grid;
+    const gy = Math.floor(tapped / grid);
+    const cx = ((gx + 0.5) / grid) * side;
+    const cy = ((gy + 0.5) / grid) * side;
+    const pr = (0.9 / grid) * side;
+    const halo = pctx.createRadialGradient(cx, cy, 0, cx, cy, pr * 2.4);
+    halo.addColorStop(0, 'rgba(255,255,255,.95)');
+    halo.addColorStop(0.4, 'rgba(255,214,170,.8)');
+    halo.addColorStop(1, 'rgba(255,214,170,0)');
+    pctx.fillStyle = halo;
+    pctx.beginPath();
+    pctx.arc(cx, cy, pr * 2.4, 0, TAU);
+    pctx.fill();
   }
+  pctx.restore();
+}
 
-  function ensureAudio() {
-    if (audio) return audio;
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return null;
-    audio = new AC();
-    return audio;
-  }
-
-  function plink(i, big) {
-    if (!soundOn) return;
-    const ac = ensureAudio();
-    if (!ac) return;
-    if (ac.state === 'suspended') ac.resume();
-    const f = NOTES[i % NOTES.length] * (big ? 0.5 : 1);
-    const o = ac.createOscillator();
-    const g = ac.createGain();
-    o.type = 'sine';
-    o.frequency.value = f;
-    const v = big ? 0.16 : 0.09;
-    const now = ac.currentTime;
-    g.gain.setValueAtTime(0.0001, now);
-    g.gain.exponentialRampToValueAtTime(v, now + 0.03);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + (big ? 1.6 : 1.0));
-    o.connect(g).connect(ac.destination);
-    o.start(now);
-    o.stop(now + 1.8);
-  }
-
-  function fire(i, strength, depth) {
-    const nd = nodes[i];
-    if (!nd) return;
-    nd.energy = clamp(nd.energy + 0.65 * strength, 0, 1.6);
-    plink(i, strength > 1.2);
-    const nbs = neighborsOf(i);
-    for (const { e, other } of nbs) {
-      e.energy = clamp(e.energy + 0.7 * strength, 0, 1.6);
-      e.memory = clamp(e.memory + 0.08 * strength, 0.25, 1);
-      if (depth > 3) continue;
-      if (Math.random() < 0.92) {
-        pulses.push({
-          e, from: i, to: other,
-          t: 0,
-          speed: rand(190, 260),
-          strength: strength * rand(0.72, 0.9),
-          depth: depth + 1
-        });
-      }
-    }
-    if (pulses.length > 140) pulses.splice(0, pulses.length - 140);
-  }
-
-  function edgeGeom(e, t) {
-    const a = nodes[e.a];
-    const b = nodes[e.b];
-    const mx = (a.x + b.x) * 0.5;
-    const my = (a.y + b.y) * 0.5;
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const len = Math.hypot(dx, dy) || 1;
-    const nx = -dy / len;
-    const ny = dx / len;
-    const bow = e.curve + Math.sin(t * 0.6 + e.phase) * 10;
-    return { ax: a.x, ay: a.y, bx: b.x, by: b.y, cx: mx + nx * bow, cy: my + ny * bow, len };
-  }
-
-  function qpoint(g, t) {
-    const u = 1 - t;
-    return {
-      x: u * u * g.ax + 2 * u * t * g.cx + t * t * g.bx,
-      y: u * u * g.ay + 2 * u * t * g.cy + t * t * g.by
-    };
-  }
-
-  let drag = null;
-  let downAt = 0;
-  let downPos = null;
-  let downNode = -1;
-
-  function hitNode(x, y) {
-    let best = -1;
-    let bd = 1e9;
-    nodes.forEach((nd, i) => {
-      const d = Math.hypot(nd.x - x, nd.y - y);
-      const hit = nd.r + 22;
-      if (d < hit && d < bd) { bd = d; best = i; }
-    });
-    return best;
-  }
-
-  canvas.addEventListener('pointerdown', (ev) => {
-    canvas.setPointerCapture(ev.pointerId);
-    const x = ev.clientX;
-    const y = ev.clientY;
-    downAt = performance.now();
-    downPos = { x, y };
-    downNode = hitNode(x, y);
-    if (downNode >= 0) {
-      drag = { i: downNode, x, y, moved: false };
-      nodes[downNode].charge = 0.0001;
+function drawStrip() {
+  sctx.clearRect(0, 0, N_BLOCKS * 22, 14);
+  for (let i = 0; i < N_BLOCKS; i += 1) {
+    const x = i * 22 + 11;
+    let fill = 0.16;
+    let r = 4;
+    if (modelLoading) {
+      const f = clamp(loadFrac * N_BLOCKS - i, 0, 1);
+      fill = 0.16 + f * 0.84;
+      r = 4 + f * 1.5;
+    } else if (sweep >= 0) {
+      const d = Math.abs(sweep - i);
+      fill = clamp(1 - d / 3, 0.16, 1);
+      r = 4 + clamp(1 - d / 3, 0, 1) * 2;
     } else {
-      ripples.push({ x, y, r: 6, a: 0.5, w: 1 });
-      let bi = 0;
-      let bd = 1e9;
-      nodes.forEach((nd, i) => {
-        const d = Math.hypot(nd.x - x, nd.y - y);
-        if (d < bd) { bd = d; bi = i; }
-      });
-      if (nodes[bi] && bd < 260) {
-        nodes[bi].energy = clamp(nodes[bi].energy + 0.25, 0, 1.2);
-      }
+      fill = 0.30 + 0.10 * Math.sin(tGlobal * 1.8 + i * 0.55);
     }
-  });
-
-  canvas.addEventListener('pointermove', (ev) => {
-    if (!drag) return;
-    const dx = ev.clientX - downPos.x;
-    const dy = ev.clientY - downPos.y;
-    if (Math.hypot(dx, dy) > 7) drag.moved = true;
-    drag.x = ev.clientX;
-    drag.y = ev.clientY;
-  });
-
-  function release(ev) {
-    if (drag) {
-      const nd = nodes[drag.i];
-      const held = (performance.now() - downAt) / 1000;
-      const ch = nd ? nd.charge : 0;
-      if (nd) {
-        if (ch > 0.35 || held > 0.55) {
-          fire(drag.i, 1 + ch * 1.6, 0);
-          ripples.push({ x: nd.x, y: nd.y, r: nd.r, a: 0.65, w: 2.2 });
-        } else {
-          fire(drag.i, 0.9, 0);
-          ripples.push({ x: nd.x, y: nd.y, r: nd.r * 0.7, a: 0.4, w: 1.2 });
-        }
-        nd.charge = 0;
-      }
-      drag = null;
-      downNode = -1;
-      return;
-    }
-    if (ev && downPos && downNode < 0) {
-      ripples.push({ x: ev.clientX, y: ev.clientY, r: 4, a: 0.3, w: 1 });
-    }
-    downNode = -1;
+    sctx.fillStyle = 'rgba(226,160,107,' + fill.toFixed(3) + ')';
+    sctx.beginPath();
+    sctx.arc(x, 7, r, 0, TAU);
+    sctx.fill();
   }
+}
 
-  canvas.addEventListener('pointerup', release);
-  canvas.addEventListener('pointercancel', release);
-
-  bPause.addEventListener('click', () => {
-    paused = !paused;
-    bPause.classList.toggle('is-alt', paused);
-    bPause.setAttribute('aria-pressed', String(paused));
-    if (!paused) last = performance.now();
-  });
-
-  bNew.addEventListener('click', () => {
-    fadeTarget = 0;
-    setTimeout(() => {
-      newGarden();
-      fadeTarget = 1;
-    }, 320);
-  });
-
-  bSound.addEventListener('click', () => {
-    soundOn = !soundOn;
-    bSound.classList.toggle('is-alt', soundOn);
-    bSound.setAttribute('aria-pressed', String(soundOn));
-    if (soundOn) {
-      ensureAudio();
-      const i = Math.floor(rand(0, nodes.length));
-      if (nodes[i]) fire(i, 0.7, 2);
-    }
-  });
-
-  window.addEventListener('resize', () => {
-    resize();
-    for (const nd of nodes) {
-      nd.bx = clamp(nd.bx, 50, W - 50);
-      nd.by = clamp(nd.by, 50, H - 90);
-    }
-  });
-
-  function step(now) {
-    requestAnimationFrame(step);
-    let dt = (now - last) / 1000;
-    last = now;
-    dt = clamp(dt, 0.001, 0.05);
-    if (paused) return;
-
-    tGlobal += dt;
-    const t = tGlobal;
-    fade += (fadeTarget - fade) * smooth(dt, 5);
-
-    for (const nd of nodes) {
-      const tx = nd.bx + Math.sin(t * nd.f1 * TAU * 0.14 + nd.p1) * nd.amp + Math.sin(t * 0.31 + nd.p2) * nd.amp * 0.35;
-      const ty = nd.by + Math.sin(t * nd.f2 * TAU * 0.14 + nd.p2) * nd.amp + Math.cos(t * 0.27 + nd.p1) * nd.amp * 0.35;
-      nd.x += (tx - nd.x) * smooth(dt, 2.2);
-      nd.y += (ty - nd.y) * smooth(dt, 2.2);
-      nd.energy *= Math.exp(-dt * 1.7);
-      nd.glow += dt;
-    }
-
-    if (drag && nodes[drag.i]) {
-      const nd = nodes[drag.i];
-      nd.x += (drag.x - nd.x) * smooth(dt, 10);
-      nd.y += (drag.y - nd.y) * smooth(dt, 10);
-      const held = (performance.now() - downAt) / 1000;
-      if (held > 0.3) nd.charge = clamp(nd.charge + dt * 0.9, 0, 1);
-    }
-
-    for (const e of edges) {
-      e.energy *= Math.exp(-dt * 2.1);
-      e.memory += (0.32 - e.memory) * smooth(dt, 0.05);
-    }
-
-    for (let i = pulses.length - 1; i >= 0; i -= 1) {
-      const p = pulses[i];
-      const g = edgeGeom(p.e, t);
-      p.t += (dt * p.speed) / Math.max(60, g.len);
-      if (p.t >= 1) {
-        pulses.splice(i, 1);
-        const nd = nodes[p.to];
-        if (nd) {
-          nd.energy = clamp(nd.energy + 0.55 * p.strength, 0, 1.6);
-          p.e.memory = clamp(p.e.memory + 0.1 * p.strength, 0.25, 1);
-          if (nd.energy > 0.5 && p.depth < 3 && Math.random() < 0.55) {
-            fire(p.to, p.strength * 0.82, p.depth + 1);
-          } else {
-            plink(p.to, false);
-          }
-        }
-      }
-    }
-
-    ambientIn -= dt;
-    if (ambientIn <= 0) {
-      ambientIn = rand(3.5, 7);
-      const i = Math.floor(rand(0, nodes.length));
-      if (nodes[i] && pulses.length < 24) fire(i, rand(0.35, 0.6), 3);
-    }
-
-    for (let i = ripples.length - 1; i >= 0; i -= 1) {
-      const r = ripples[i];
-      r.r += dt * 130;
-      r.a *= Math.exp(-dt * 2.4);
-      if (r.a < 0.015) ripples.splice(i, 1);
-    }
-
-    draw(t);
+function frame(now) {
+  requestAnimationFrame(frame);
+  let dt = (now - last) / 1000;
+  last = now;
+  dt = clamp(dt, 0.001, 0.05);
+  tGlobal += dt;
+  if (sweep >= 0) {
+    sweep += dt * 14;
+    if (sweep > N_BLOCKS + 2) sweep = -1;
   }
-
-  function draw(t) {
-    ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = '#f6f3ec';
-    ctx.fillRect(0, 0, W, H);
-    ctx.globalAlpha = clamp(fade, 0, 1);
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    for (const e of edges) {
-      const g = edgeGeom(e, t);
-      const warm = clamp(e.energy * 0.9 + e.memory * 0.45, 0, 1);
-      const rC = Math.round(lerp(217, 226, warm));
-      const gC = Math.round(lerp(214, 160, warm));
-      const bC = Math.round(lerp(208, 107, warm));
-      ctx.strokeStyle = 'rgba(' + rC + ',' + gC + ',' + bC + ',' + (0.42 + warm * 0.4).toFixed(3) + ')';
-      ctx.lineWidth = 1 + e.memory * 0.9 + e.energy * 2.4;
-      ctx.beginPath();
-      ctx.moveTo(g.ax, g.ay);
-      ctx.quadraticCurveTo(g.cx, g.cy, g.bx, g.by);
-      ctx.stroke();
-      if (e.energy > 0.06) {
-        ctx.strokeStyle = 'rgba(226,160,107,' + (e.energy * 0.18).toFixed(3) + ')';
-        ctx.lineWidth = 9 + e.energy * 7;
-        ctx.beginPath();
-        ctx.moveTo(g.ax, g.ay);
-        ctx.quadraticCurveTo(g.cx, g.cy, g.bx, g.by);
-        ctx.stroke();
-      }
-    }
-
-    for (const p of pulses) {
-      const g = edgeGeom(p.e, t);
-      const pos = qpoint(g, clamp(p.t, 0, 1));
-      const pr = 5 + p.strength * 5 + Math.sin(t * 9 + p.t * 12) * 1.2;
-      const halo = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, pr * 3.2);
-      halo.addColorStop(0, 'rgba(255,255,255,.95)');
-      halo.addColorStop(0.35, 'rgba(255,214,170,.75)');
-      halo.addColorStop(1, 'rgba(255,214,170,0)');
-      ctx.fillStyle = halo;
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y, pr * 3.2, 0, TAU);
-      ctx.fill();
-      ctx.fillStyle = '#fffdf9';
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y, 3.4 + p.strength * 1.6, 0, TAU);
-      ctx.fill();
-    }
-
-    for (const nd of nodes) {
-      const breathe = 1 + Math.sin(t * nd.f3 * TAU * 0.22 + nd.p3) * 0.045;
-      const ch = nd.charge || 0;
-      const R = nd.r * breathe * (1 + ch * 0.55);
-      const eg = clamp(nd.energy, 0, 1.4);
-
-      if (eg > 0.02) {
-        const gr = R * (2.6 + Math.sin(nd.glow * 3.1) * 0.25);
-        const glow = ctx.createRadialGradient(nd.x, nd.y, R * 0.4, nd.x, nd.y, gr);
-        glow.addColorStop(0, 'rgba(255,205,150,' + (0.55 * Math.min(1, eg)).toFixed(3) + ')');
-        glow.addColorStop(0.55, 'rgba(255,214,170,' + (0.22 * Math.min(1, eg)).toFixed(3) + ')');
-        glow.addColorStop(1, 'rgba(255,214,170,0)');
-        ctx.fillStyle = glow;
-        ctx.beginPath();
-        ctx.arc(nd.x, nd.y, gr, 0, TAU);
-        ctx.fill();
-      }
-
-      ctx.save();
-      ctx.shadowColor = 'rgba(90,80,70,.16)';
-      ctx.shadowBlur = 18;
-      ctx.shadowOffsetY = 7;
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(nd.x, nd.y, R, 0, TAU);
-      ctx.fill();
-      ctx.restore();
-
-      ctx.strokeStyle = eg > 0.25 ? 'rgba(226,160,107,.75)' : 'rgba(60,55,50,.10)';
-      ctx.lineWidth = eg > 0.25 ? 1.8 : 1.2;
-      ctx.beginPath();
-      ctx.arc(nd.x, nd.y, R, 0, TAU);
-      ctx.stroke();
-
-      const coreA = clamp(0.25 + eg * 0.75, 0, 1);
-      const coreR = R * (0.34 + Math.min(1, eg) * 0.22 + ch * 0.18);
-      const core = ctx.createRadialGradient(nd.x - coreR * 0.25, nd.y - coreR * 0.3, 0, nd.x, nd.y, coreR);
-      core.addColorStop(0, 'rgba(255,255,255,' + coreA.toFixed(3) + ')');
-      core.addColorStop(0.6, 'rgba(255,211,165,' + (coreA * 0.9).toFixed(3) + ')');
-      core.addColorStop(1, 'rgba(238,170,110,' + (coreA * 0.95).toFixed(3) + ')');
-      ctx.fillStyle = core;
-      ctx.beginPath();
-      ctx.arc(nd.x, nd.y, coreR, 0, TAU);
-      ctx.fill();
-
-      if (ch > 0.02) {
-        ctx.strokeStyle = 'rgba(226,160,107,' + (0.25 + ch * 0.5).toFixed(3) + ')';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(nd.x, nd.y, R + 7 + Math.sin(t * 10) * 2 * ch, 0, TAU);
-        ctx.stroke();
-      }
-    }
-
-    for (const rp of ripples) {
-      ctx.strokeStyle = 'rgba(140,132,122,' + rp.a.toFixed(3) + ')';
-      ctx.lineWidth = rp.w;
-      ctx.beginPath();
-      ctx.arc(rp.x, rp.y, rp.r, 0, TAU);
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
+  if (target && shown) {
+    const k = smooth(dt, 6);
+    for (let i = 0; i < shown.length; i += 1) shown[i] += (target[i] - shown[i]) * k;
   }
-
-  resize();
-  newGarden();
-  for (let k = 0; k < 3; k += 1) {
-    ripples.push({ x: W * 0.5 + rand(-60, 60), y: H * 0.42 + rand(-40, 40), r: 8 + k * 14, a: 0.34 - k * 0.08, w: 1.2 });
+  for (let i = ripples.length - 1; i >= 0; i -= 1) {
+    const rp = ripples[i];
+    rp.r += dt * 120;
+    rp.a *= Math.exp(-dt * 2.6);
+    if (rp.a < 0.02) ripples.splice(i, 1);
   }
-  requestAnimationFrame((n) => { last = n; requestAnimationFrame(step); });
+  drawBase();
+  paintGlow();
+  pctx.save();
+  rr(pctx, 0, 0, side, side, 28);
+  pctx.clip();
+  for (const rp of ripples) {
+    pctx.strokeStyle = 'rgba(140,132,122,' + rp.a.toFixed(3) + ')';
+    pctx.lineWidth = 1.5;
+    pctx.beginPath();
+    pctx.arc(rp.x, rp.y, rp.r, 0, TAU);
+    pctx.stroke();
+  }
+  pctx.restore();
+  drawStrip();
+}
+
+let processor = null;
+let model = null;
+
+async function ensureBrain(progress) {
+  if (model) return true;
+  const tries = [
+    { dtype: 'q4', device: 'webgpu' },
+    { dtype: 'q4', device: 'wasm' },
+  ];
+  for (const opt of tries) {
+    try {
+      if (!processor) {
+        processor = await AutoImageProcessor.from_pretrained(MODEL, { progress_callback: progress });
+      }
+      model = await AutoModel.from_pretrained(MODEL, { ...opt, progress_callback: progress });
+      return true;
+    } catch {
+      model = null;
+    }
+  }
+  return false;
+}
+
+async function infer() {
+  if (!processor || !model || square.width === 0) return;
+  sweep = 0;
+  try {
+    const { pixel_values } = await processor(square);
+    const out = await model({ pixel_values });
+    const rows = out.last_hidden_state.tolist()[0];
+    const regs = model.config && model.config.num_register_tokens ? model.config.num_register_tokens : 4;
+    const sliced = slicePatchTokens(rows, regs);
+    grid = sliced.grid;
+    dim = sliced.dim;
+    feats = normalizeRows(sliced.patches, grid * grid, dim);
+    target = new Float32Array(grid * grid);
+    shown = new Float32Array(grid * grid);
+    tapped = -1;
+    ready = true;
+  } catch {
+    ready = false;
+  }
+}
+
+function setPhoto(img) {
+  const s = Math.min(img.naturalWidth, img.naturalHeight);
+  const sx = (img.naturalWidth - s) / 2;
+  const sy = (img.naturalHeight - s) / 2;
+  const S = 448;
+  square.width = S;
+  square.height = S;
+  square.getContext('2d').drawImage(img, sx, sy, s, s, 0, 0, S, S);
+  feats = null;
+  target = null;
+  shown = null;
+  tapped = -1;
+  ripples = [];
+  ready = false;
+  if (model && processor) infer();
+}
+
+function loadSrc(src) {
+  const img = new Image();
+  img.onload = () => setPhoto(img);
+  img.src = src;
+}
+
+photo.addEventListener('pointerdown', (ev) => {
+  const rect = photo.getBoundingClientRect();
+  const x = ev.clientX - rect.left;
+  const y = ev.clientY - rect.top;
+  if (!ready || !feats) {
+    ripples.push({ x, y, r: 6, a: 0.45 });
+    return;
+  }
+  const cell = pointToCell(x, y, side, grid);
+  if (cell < 0) return;
+  tapped = cell;
+  target = similarityMap(feats, grid * grid, dim, cell);
+  ripples.push({ x, y, r: 6, a: 0.55 });
+});
+
+function showSample(dir) {
+  if (customURL) {
+    URL.revokeObjectURL(customURL);
+    customURL = null;
+  }
+  sampleIdx = (sampleIdx + dir + SAMPLES.length) % SAMPLES.length;
+  loadSrc(SAMPLES[sampleIdx]);
+}
+
+bPrev.addEventListener('click', () => showSample(-1));
+bNext.addEventListener('click', () => showSample(1));
+bUp.addEventListener('click', () => file.click());
+file.addEventListener('change', () => {
+  if (!file.files || file.files.length === 0) return;
+  if (customURL) URL.revokeObjectURL(customURL);
+  customURL = URL.createObjectURL(file.files[0]);
+  loadSrc(customURL);
+  file.value = '';
+});
+
+window.addEventListener('resize', resize);
+
+resize();
+requestAnimationFrame((n) => {
+  last = n;
+  requestAnimationFrame(frame);
+});
+loadSrc(SAMPLES[sampleIdx]);
+
+const seen = new Map();
+const progress = (info) => {
+  if (!info || !info.file) return;
+  if (info.status === 'done') {
+    seen.set(info.file, 1);
+  } else if (info.status === 'progress' && info.total) {
+    seen.set(info.file, clamp(info.loaded / info.total, 0, 1));
+  } else if (!seen.has(info.file)) {
+    seen.set(info.file, 0);
+  }
+  let s = 0;
+  seen.forEach((v) => { s += v; });
+  loadFrac = seen.size === 0 ? 0 : s / seen.size;
+};
+
+(async () => {
+  const ok = await ensureBrain(progress);
+  modelLoading = false;
+  if (ok) infer();
 })();
 </script>
 </body>
