@@ -695,14 +695,11 @@ function pickGazeFocus() {
     gazeColors = [];
     visitedCount = 0;
   }
-  // schedule by fixation count, not explored fraction: brightness/vibrance
-  // dominates the opening (k=0: 1.50) but is ~gone after 3-4 fixations
-  // (k=4: 0.30), while novelty rises and stays — small distinct shades win
-  // regardless of size from then on.
-  const wVib = 1.5 * Math.exp(-gazeFix / 2.5);
-  const wNov = 0.5 + 1.5 * (1 - Math.exp(-gazeFix / 3));
+  // PCA-ONLY exploration (experiment branch): no brightness/vibrance bias.
+  // Score is pure distinctness in dream-map color space from the current
+  // fixation and everything attended so far. First fixation has no history,
+  // so it starts at a genuinely random patch.
   const havePCA = dreamRGB && dreamRGB.length === n * 3;
-  const haveStats = patchLum && patchSat && patchLum.length === n;
   const cr = gazeCell >= 0 && havePCA ? gazeCell * 3 : -1;
   const best = [];
   for (let i = 0; i < n; i += 1) {
@@ -725,8 +722,7 @@ function pickGazeFocus() {
         if (dd < d) d = dd;
       }
     }
-    const vib = haveStats ? 0.6 * patchLum[i] + 0.4 * patchSat[i] : 0;
-    const score = wNov * d + wVib * vib;
+    const score = d;
     if (best.length < GAZE_TOPK || score > best[best.length - 1].s) {
       best.push({ i, s: score });
       best.sort((a, b) => b.s - a.s);
@@ -749,7 +745,7 @@ function pickGazeFocus() {
   gazeFix += 1;
   gazeCell = cell;
   gazeTarget = similarityMap(feats, n, dim, cell);
-  log('gaze cell=' + cell + ' fix=' + gazeFix + ' wVib=' + wVib.toFixed(2));
+  log('gaze cell=' + cell + ' fix=' + gazeFix + ' topNov=' + best[0].s.toFixed(2));
 }
 
 function doTap(x, y) {
