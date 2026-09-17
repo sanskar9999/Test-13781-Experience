@@ -75,12 +75,13 @@ with smoothing so there are no blocky edges. Accent color is blue (`#4d7cfe`).
      match core. Clean photo until the first tap (`tapped < 0`).
    - *gaze (default until first tap):* saliency wander, not random and not the
      CLS vector. `pickGazeFocus()` scores every unvisited patch:
-     PCA-color distance (`dreamRGB`) to the current + last 8 fixations
-     (never similar sections in a row) plus vibrance
-     (`0.6*patchLum + 0.4*patchSat`, built per photo in `infer()`), with a
-     schedule — vibrance weight `1.5*(1-p)` fades as explored fraction `p`
-     grows while novelty weight `0.5+1.5*p` rises, so bright lights and vivid
-     colors go first and little details come later. Next fixation is a
+     PCA-color distance (`dreamRGB`) to the current fixation and to ALL past
+     ones (`gazeColors`), so similar sections never repeat and even tiny
+     unexplored shades outscore bright repeats. Schedule runs on fixation
+     count (`gazeFix`), not explored fraction: vibrance weight
+     `1.5*exp(-k/2.5)` dominates the opening but is ~gone after 3-4
+     fixations, while novelty `0.5+1.5*(1-exp(-k/3))` rises and stays —
+     bright lights first, then pure color-diversity wandering. Next fixation is a
      softmax draw (`TEMP=0.3`) over the top 5 (`GAZE_TOPK`): favorites usually
      win, surprises slip in. One continuous breath, no resets: 2s inhale
      (strictness slider → 0.9 on a sine ease), 1s hold at max, 1.6s exhale
