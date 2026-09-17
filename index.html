@@ -194,10 +194,13 @@ let gazeShown = null;
 let gazeCell = -1; // current auto-focus patch
 let gazeTarget = null; // similarity map of the focus (an automatic tap)
 let gazeVisited = null; // Uint8Array(n): patches already fixated
-let gazeT = 0; // seconds within the breathe cycle
+let gazeT = 0; // seconds within the current phase
 let gazeCut = 0.3; // animated strictness for gaze
-const GAZE_BREATHE = 1.0; // sensitivity swell duration (sin wave)
-const GAZE_HOLD = 0.5; // stillness at max sensitivity before shifting
+let gazePhase = 0; // 0 inhale (swell to max), 1 hold, 2 exhale + glide to next
+let gazeFrom = null; // field snapshot at shift start, for the eased glide
+const GAZE_BREATHE = 2.0; // inhale duration
+const GAZE_HOLD = 1.0; // stillness at max sensitivity before shifting
+const GAZE_SHIFT = 1.6; // exhale + glide duration
 let dreamRGB = null;
 let dreamShown = null;
 let downInfo = null;
@@ -408,22 +411,38 @@ function frame(now) {
     for (let i = 0; i < shown.length; i += 1) shown[i] += (target[i] - shown[i]) * k;
   }
   if (clsSims && gazeShown) {
-    // breathing attention: only wander when the brain is ready
+    // breathing attention, fully continuous: no resets, every handoff eased.
     if (ready && feats && grid > 0) {
       const n = grid * grid;
-      if (gazeCell < 0 || !gazeTarget || gazeTarget.length !== n) pickGazeFocus();
-      gazeT += dt;
-      if (gazeT < GAZE_BREATHE) {
-        gazeCut = clamp(cut + 0.3 * Math.sin(Math.PI * (gazeT / GAZE_BREATHE)), 0.3, 0.95);
-      } else if (gazeT < GAZE_BREATHE + GAZE_HOLD) {
-        gazeCut = 0.9; // hold max sensitivity
-      } else {
-        pickGazeFocus(); // shift to a previously unvisited region
-        gazeCut = cut;
+      if (gazeCell < 0 || !gazeTarget || gazeTarget.length !== n) {
+        pickGazeFocus();
+        gazePhase = 0;
+        gazeT = 0;
       }
-      if (gazeTarget && gazeShown.length === n) {
+      gazeT += dt;
+      if (gazePhase === 0) {
+        // inhale: strictness swells slider -> max on a sine ease
+        const e = 0.5 - 0.5 * Math.cos(Math.PI * clamp(gazeT / GAZE_BREATHE, 0, 1));
+        gazeCut = cut + (0.9 - cut) * e;
         const k = smooth(dt, 6);
         for (let i = 0; i < n; i += 1) gazeShown[i] += (gazeTarget[i] - gazeShown[i]) * k;
+        if (gazeT >= GAZE_BREATHE) { gazePhase = 1; gazeT = 0; }
+      } else if (gazePhase === 1) {
+        gazeCut = 0.9; // hold max sensitivity
+        if (gazeT >= GAZE_HOLD) {
+          gazeFrom = Float32Array.from(gazeShown);
+          pickGazeFocus();
+          gazePhase = 2;
+          gazeT = 0;
+        }
+      } else {
+        // exhale + glide: field morphs old -> new, strictness max -> slider,
+        // both on the same sine easing, so speed peaks mid-glide like a tap
+        const x = clamp(gazeT / GAZE_SHIFT, 0, 1);
+        const e = 0.5 - 0.5 * Math.cos(Math.PI * x);
+        for (let i = 0; i < n; i += 1) gazeShown[i] = gazeFrom[i] + (gazeTarget[i] - gazeFrom[i]) * e;
+        gazeCut = 0.9 + (cut - 0.9) * e;
+        if (x >= 1) { gazePhase = 0; gazeT = 0; gazeFrom = null; }
       }
     }
   }
@@ -600,6 +619,8 @@ function setPhoto(img) {
   gazeVisited = null;
   gazeT = 0;
   gazeCut = cut;
+  gazePhase = 0;
+  gazeFrom = null;
   ripples = [];
   ready = false;
   brainDead = false;
@@ -618,7 +639,7 @@ const bGaze = document.getElementById('bGaze');
 
 function setMode(m) {
   mode = m;
-  if (m === 'gaze') gazeT = 0; // fresh breath on entering gaze
+  if (m === 'gaze') { gazeT = 0; gazePhase = 0; } // fresh breath on entering gaze
   bTouch.setAttribute('aria-pressed', String(m === 'touch'));
   bDream.setAttribute('aria-pressed', String(m === 'dream'));
   bGaze.setAttribute('aria-pressed', String(m === 'gaze'));
@@ -647,7 +668,6 @@ function pickGazeFocus() {
   gazeVisited[cell] = 1;
   gazeCell = cell;
   gazeTarget = similarityMap(feats, n, dim, cell);
-  gazeT = 0;
   log('gaze cell=' + cell);
 }
 
