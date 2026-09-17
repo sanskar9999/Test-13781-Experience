@@ -160,7 +160,7 @@ import { slicePatchTokens, normalizeRows, similarityMap, pointToCell, simToAlpha
 
 const MODEL = 'onnx-community/dinov3-vits16-pretrain-lvd1689m-ONNX';
 const N_BLOCKS = 12;
-const SAMPLES = ['images/dog.jpg', 'images/cats.jpg', 'images/chonk.jpg'];
+const SAMPLES = ['images/cats.jpg', 'images/chonk.jpg', 'images/pic01.jpg', 'images/pic02.jpg', 'images/pic03.jpg', 'images/pic04.jpg', 'images/pic05.jpg', 'images/pic06.jpg', 'images/pic07.jpg', 'images/pic08.jpg', 'images/pic09.jpg', 'images/pic10.jpg', 'images/pic11.jpg', 'images/pic12.jpg', 'images/pic13.jpg'];
 
 const photo = document.getElementById('photo');
 const pctx = photo.getContext('2d');
@@ -215,7 +215,7 @@ let brainDead = false;
 let loadFrac = 0;
 let sweep = -1; // inference sweep position, -1 idle
 let ripples = [];
-let sampleIdx = 1;
+let sampleIdx = Math.floor(Math.random() * SAMPLES.length); // surprise me on load
 let customURL = null;
 let tGlobal = rand(0, 100);
 let last = performance.now();

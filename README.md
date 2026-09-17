@@ -35,7 +35,7 @@ UI is deliberately minimal — one rounded photo, one status strip, two pill doc
 | `gaze` button (eye, default) | Machine breathing: fixates a random unvisited patch, inhales strictness over 2s (sine ease), holds 1s at max, then exhales back while gliding to another unvisited region over 1.6s — until you tap |
 | Bar slider (bottom, no label) | Strictness (`cut` 0.3–0.9, default 0.3 = minimum). Left = broad region, right = tight core. Gaze swells around it |
 | Mouse wheel over photo | Same control on desktop (`cut += deltaY * 0.0006`, synced to the bar) |
-| `<` / `>` | Cycle built-in samples: `images/dog.jpg` → `images/cats.jpg` → `images/chonk.jpg` (opens on cats) |
+| `<` / `>` | Cycle built-in samples: `cats` + `chonk` + `pic01`–`pic13` (opens on a random one) |
 | Upload (↑) | Pick your own image (`<input type=file accept=image/*>`) |
 | `?debug` URL param | e.g. `.../index.html?debug` — shows `#dbg` overlay + console logs (`boot`, `brain try`, `infer ok`, `tap cell=`, `cut=`) |
 
@@ -107,7 +107,8 @@ index.html   All UI + CSS + app logic (~600 lines). Only file Pages serves
 touch.js     Pure, DOM-free math helpers (~140 lines). Importable in node for tests.
              Exports: gridSize, slicePatchTokens, normalizeRows, similarityMap,
                       pointToCell, simToAlpha, sliceCls, pca3.
-images/      dog.jpg, cats.jpg, chonk.jpg — bundled samples in SAMPLES[].
+images/      cats.jpg, chonk.jpg + pic01–pic13 (from Download/InterestingPics,
+             downscaled to ≤1024px JPEG; dog.jpg retired). Random one on load.
 iit4/ tests/ LEGACY, not used by the live site. See §6.
 .gitignore   __pycache__/, .pytest_cache/, *.pyc (leftover from legacy Python part).
 ```
