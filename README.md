@@ -1,7 +1,9 @@
 # Test-13781-Experience — Touch the Photo
 
 In-browser tactile vision explorer. Tap any part of a photo and the patches
-the vision transformer thinks are *the same thing* glow warm orange.
+the vision transformer thinks are *the same thing* stay in full color while
+everything else falls into grey. Leave it alone and it breathes on its own,
+wandering from concept to concept through the model's eyes.
 
 **Live demo:** https://sanskar9999.github.io/Test-13781-Experience/
 **Entry point:** `index.html` (served via GitHub Pages from `main`).
@@ -73,19 +75,19 @@ with smoothing so there are no blocky edges. Accent color is blue (`#4d7cfe`).
      veil and composited over the full-color base; then a second composited
      layer (`pop`: vivid copy, or blue tint when `isGrey`) highlights the
      match core. Clean photo until the first tap (`tapped < 0`).
-   - *gaze (EXPERIMENT `exp/pca-only-gaze`, default until first tap):* pure
-     PCA-novelty wander — score is ONLY dream-map color distance to the
-     current + all past fixations, no brightness/vibrance term at all. First
-     fixation is random (no history); after that it always jumps to the most
-     conceptually different unexplored shade via softmax top-5. Same
-     continuous breath (2s inhale → 1s hold → 1.6s exhale-glide). Next fixation is a
-     softmax draw (`TEMP=0.3`) over the top 5 (`GAZE_TOPK`): favorites usually
-     win, surprises slip in. One continuous breath, no resets: 2s inhale
-     (strictness slider → 0.9 on a sine ease), 1s hold at max, 1.6s exhale
-     (0.9 → slider) while the field crossfades old → new on the same easing
-     (`GAZE_BREATHE`/`GAZE_HOLD`/`GAZE_SHIFT`, `gazePhase`, `gazeFrom`).
-     Visited patches tracked per photo, reset when exhausted. Tapping at any
-     point drops into `touch`.
+   - *gaze (default until first tap):* pure PCA-novelty wander — each score
+     is ONLY dream-map color distance to the current + all past fixations
+     (`gazeColors`), no brightness term. First fixation is random (no
+     history); after that it hops to the most conceptually different
+     unexplored shade, drawn by softmax (`TEMP=0.3`) over the top 5
+     (`GAZE_TOPK`) so favorites usually win but surprises slip in. Same
+     continuous breath throughout: 2s inhale (strictness slider → 0.9 on a
+     sine ease), 1s hold at max, 1.6s exhale (0.9 → slider) while the field
+     crossfades old → new on the same easing, so glide speed peaks
+     mid-travel (`GAZE_BREATHE`/`GAZE_HOLD`/`GAZE_SHIFT`, `gazePhase`,
+     `gazeFrom`). Visited patches tracked per photo (`gazeVisited`), reset
+     when exhausted. Tapping at any point drops into `touch`. See §7 for why
+     PCA-only beat the hand-designed saliency scheduler.
    - *dream:* top-3 PCA of **raw** (unnormalized) patches → per-patch RGB
      in [0,1] (`pca3`: center → Gram matrix → 60-iter power iteration ×3
      with deflation → min-max per component). Computed once per photo,
@@ -121,9 +123,12 @@ Key constants in `index.html` (top of module script):
 
 Key mutable state: `feats` (Float32Array n×dim, normalized), `grid`, `dim`,
 `target/shown` (touch sim), `clsSims` (computed, informational),
-`gazeShown`/`gazeTarget`/`gazeCell`/`gazeVisited`/`gazeT`/`gazeCut` (wander),
-`dreamRGB/dreamShown`, `ready`, `modelLoading`, `brainDead`, `loadFrac`,
-`sweep`, `ripples`, `tapped`, `mode` (default `'gaze'`), `isGrey`, `pop`.
+`gazeShown`/`gazeTarget`/`gazeCell`/`gazeVisited`/`gazeColors`/`gazeFix`/
+`gazeT`/`gazeCut`/`gazePhase`/`gazeFrom` (wander), `patchLum`/`patchSat`
+(per-patch brightness/saturation — currently computed but unused after the
+PCA-only win, kept for experiments), `dreamRGB/dreamShown`, `ready`,
+`modelLoading`, `brainDead`, `loadFrac`, `sweep`, `ripples`, `tapped`,
+`mode` (default `'gaze'`), `isGrey`, `pop`.
 
 ## 4. `touch.js` quick reference
 
@@ -171,9 +176,47 @@ does not affect Pages. This README now documents what is actually deployed.
 
 Git log recap: `7e5c931` IIT sim → `821df23` neuron garden →
 `8079d8f` touch-only DINOv3 explorer → inference/debug fixes →
-`447dfa0` pure similarity map → `ce470d0` dream+gaze+sensitivity (current).
+`447dfa0` pure similarity map → `ce470d0` dream+gaze → blue theme +
+slider + grey spotlight → match pop (B&W tint) → breathing wander →
+saliency scheduler → **PCA-only gaze (current, `f3f3809`)**.
 
-## 7. Maintenance ideas (future self)
+## 7. Design journey — how the gaze got its eyes
+
+Worth reading before touching `pickGazeFocus()`. Every step was tested on
+real photos; the lesson of the whole arc is at the end.
+
+1. **Static CLS gaze.** Gaze showed CLS-token vs patches with a pulse. Lifeless.
+2. **Random wander.** Fixate a random unvisited patch per breath. Felt mechanical,
+   revisited lookalikes back-to-back.
+3. **Breathing wander.** Continuous 3-phase breath (2s inhale strictness swell,
+   1s hold at max, 1.6s exhale + crossfade glide, all sine-eased, zero resets)
+   so attention melts between regions instead of cutting. Still random targets.
+4. **Hand-designed saliency.** Score = PCA-distance novelty + brightness/
+   vibrance with a schedule (vibrance decays by fixation count
+   `1.5*exp(-k/2.5)`, novelty rises). Bright lights first, details later,
+   softmax top-5 pick. Good — but the brightness bias lingered and the walk
+   still felt authored.
+5. **PCA-only (current winner).** Deleted the entire vibrance term on a hunch:
+   score is just dream-map color distance to everything attended so far.
+   Immediately better than the custom algorithm — it fixates things neither
+   of us can name, because it walks the model's own concept space instead of
+   our idea of saliency. Tested on branch `exp/pca-only-gaze`, then
+   fast-forwarded to `main` (`f3f3809`).
+
+Rendering went through its own arc in parallel: orange glow (unreadable on
+orange fur) → blue UI + navy veil + marching contour (blocky, threshold edge
+sat far from the hot core, wrong 0–0.6 range) → grey spotlight with the old
+glow's falloff, peak-normalized, range retuned to 0.3–0.9 → vivid/tint pop
+layer, with B&W detection (saturation boost is a no-op on grey pixels, so B&W
+gets a blue duotone instead).
+
+Checkpoints (branches + tags on GitHub, roll back with
+`git checkout <name>`):
+- `checkpoint-breathing-perfect` (`f0bb035`) — breathing wander approved as-is.
+- `checkpoint-saliency-scheduler` (`0da03b4`) — vibrance-decay scheduler.
+- `exp/pca-only-gaze` — the experiment branch, now identical to `main`.
+
+## 8. Maintenance ideas (future self)
 
 - Add `tests/touch.test.js` (node) for the pure helpers — file header already
   promises "testable in node", but no JS tests exist yet.
