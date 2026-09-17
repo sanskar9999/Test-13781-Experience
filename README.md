@@ -27,21 +27,21 @@ UI is deliberately minimal — one rounded photo, one status strip, two pill doc
 
 | Gesture | Effect |
 |---|---|
-| Single tap / click on photo | Switches to `touch` mode, computes cosine similarity of tapped patch vs every patch, dims the rest + traces the match |
+| Single tap / click on photo | Switches to `touch` mode, computes cosine similarity of tapped patch vs every patch, keeps matches in color and greys out the rest |
 | `touch` button | Back to similarity mode |
 | `dream` button (orb) | Shows top-3 PCA of patch features as RGB "what the model sees" |
-| `gaze` button (eye) | Shows CLS (whole-image) token vs every patch with the same dim + contour treatment, gently pulsing — "what the model looks at" |
-| Sensitivity bar (bottom) | Strictness (`cut` 0–0.6, default 0 = minimum). Left = more matches, right = stricter |
+| `gaze` button (eye) | Shows CLS (whole-image) token vs every patch with the same grey spotlight, gently pulsing — "what the model looks at" |
+| Sensitivity bar (bottom) | Strictness (`cut` 0.3–0.9, default 0.3 = minimum). Left = broad region, right = tight core |
 | Mouse wheel over photo | Same control on desktop (`cut += deltaY * 0.0006`, synced to the bar) |
 | `<` / `>` | Cycle built-in samples: `images/dog.jpg` → `images/cats.jpg` → `images/chonk.jpg` |
 | Upload (↑) | Pick your own image (`<input type=file accept=image/*>`) |
 | `?debug` URL param | e.g. `.../index.html?debug` — shows `#dbg` overlay + console logs (`boot`, `brain try`, `infer ok`, `tap cell=`, `cut=`) |
 
-Matches read via brightness, not hue: non-matches get a navy veil
-(`rgba(23,30,58,α)`, up to 0.62) while matches stay full-color, traced by a
-blue halo + marching white contour. Threshold mapping lives in
-`touch.js: simToAlpha()` — `(sim - cut) / 0.55`, pow 1.5 falloff.
-Accent color is blue (`#4d7cfe`).
+Matches read via brightness, not hue: the photo is shown in full color where
+it matches and fades to dark grey (desaturated to 62% brightness) elsewhere,
+using the same soft falloff the old orange glow had. Threshold mapping lives
+in `touch.js: simToAlpha()` — `(sim - cut) / (1 - cut)`, pow 1.5 falloff, upscaled
+with smoothing so there are no blocky edges. Accent color is blue (`#4d7cfe`).
 
 ## 2. How it works (pipeline)
 
@@ -62,19 +62,20 @@ Accent color is blue (`#4d7cfe`).
 5. **Per mode:**
    - *touch:* L2-normalize patches (`normalizeRows`), cosine-similarity of
      tapped cell vs all (`similarityMap`). Result smoothed per-frame
-     (`shown += (target - shown) * (1 - e^-6dt)`), then rendered as dim +
-     contour (`paintShade()`): veil upscaled from 28×28 with smoothing,
-     boundary traced cell-by-cell with a blue halo + animated white dash.
-     Clean photo until the first tap (`tapped < 0`).
+     (`shown += (target - shown) * (1 - e^-6dt)`), then rendered as a grey
+     spotlight (`paintShade()`): a precomputed desaturated copy (`grey`,
+     built once per photo in `setPhoto()`) is masked by the upscaled soft
+     veil and composited over the full-color base. Clean photo until the
+     first tap (`tapped < 0`).
    - *gaze:* raw CLS vector (`sliceCls`) dotted against normalized patches,
-     same smoothing and same dim + contour, plus a sine pulse on the veil
-     and a marching dash offset.
+     same smoothing and same grey spotlight, plus a gentle sine pulse on
+     the veil.
    - *dream:* top-3 PCA of **raw** (unnormalized) patches → per-patch RGB
      in [0,1] (`pca3`: center → Gram matrix → 60-iter power iteration ×3
      with deflation → min-max per component). Computed once per photo,
      faded in like the others.
 6. **Render loop.** `requestAnimationFrame(frame)` always runs: base photo +
-   shade layer (dim + contour, clipped to 28px rounded rect) + expanding tap
+   shade layer (grey spotlight, clipped to 28px rounded rect) + expanding tap
    ripples + breathing veil while loading / steady dim if model failed (`brainDead`).
 
 If the model fails all three tries, the photo stays usable but dimmed and
@@ -100,7 +101,7 @@ Key constants in `index.html` (top of module script):
 - `SAMPLES` — sample list. Paths are relative, so local `python3 -m http.server` works.
 - `S = 448` in `setPhoto()` — inference resolution. Larger = finer grid but
   slower + more RAM. 448 ÷ 16 = 28 is the current grid.
-- `cut = 0`, clamped 0–0.6 — strictness, wired to the bottom bar (default minimum).
+- `cut = 0.3`, clamped 0.3–0.9 — strictness, wired to the bottom bar (default minimum).
 
 Key mutable state: `feats` (Float32Array n×dim, normalized), `grid`, `dim`,
 `target/shown` (touch sim), `clsSims/gazeShown`, `dreamRGB/dreamShown`,
@@ -116,7 +117,7 @@ Key mutable state: `feats` (Float32Array n×dim, normalized), `grid`, `dim`,
 | `normalizeRows` | `(patches, n, dim) → Float32Array` | Per-patch L2 norm, `‖v‖‖=0 → ×1` guard |
 | `similarityMap` | `(normed, n, dim, index) → Float32Array[n]` | Cosine sim, self = ~1.0 |
 | `pointToCell` | `(x, y, size, grid) → cell \| -1` | Clamps edge pixels to last cell |
-| `simToAlpha` | `(sim, cut=0.25) → 0..1` | `((sim-cut)/0.55)^1.5` |
+| `simToAlpha` | `(sim, cut=0.3) → 0..1` | `((sim-cut)/(1-cut))^1.5` |
 | `sliceCls` | `(lastHidden) → Float32Array` | Row 0 |
 | `pca3` | `(patches, n, dim) → Float32Array[n*3]` | Random-init power iteration — colors jitter slightly run to run; mid-grey (0.5) fallback if λ≈0 |
 

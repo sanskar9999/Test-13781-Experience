@@ -56,9 +56,11 @@ export function pointToCell(x, y, size, grid) {
 }
 
 // Similarity -> soft display alpha. `cut` sets where background melts away.
+// Normalized by (1 - cut) so the peak (self-similarity = 1) always stays
+// fully visible no matter how strict the cut gets.
 export function simToAlpha(sim, cut) {
-  const c = cut === undefined ? 0.25 : cut;
-  const t = (sim - c) / 0.55;
+  const c = cut === undefined ? 0.3 : cut;
+  const t = (sim - c) / Math.max(1e-6, 1 - c);
   if (t <= 0) return 0;
   if (t >= 1) return 1;
   return Math.pow(t, 1.5);
