@@ -32,6 +32,21 @@
     user-select:none;
     -webkit-user-select:none;
   }
+  .stage{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    min-width:0;
+  }
+  .viewer{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:12px;
+  }
+  .rail{display:contents}
   #photo{
     border-radius:28px;
     box-shadow:0 18px 44px rgba(0,0,0,.55), 0 3px 10px rgba(0,0,0,.4);
@@ -107,6 +122,64 @@
     cursor:pointer;
   }
   #file{display:none}
+  @media (min-width:900px){
+    #dock{display:none}
+    body{
+      flex-direction:row;
+      align-items:stretch;
+      justify-content:flex-start;
+      gap:0;
+    }
+    .stage{flex:1;gap:20px}
+    .viewer{gap:44px}
+    .viewer .btn{width:60px;height:60px;flex:none}
+    #blocks{opacity:.95}
+    .rail{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:20px;
+      width:112px;
+      flex:none;
+      min-height:100dvh;
+      padding:32px 0;
+      border-left:1px solid var(--line);
+      background:rgba(255,255,255,.012);
+    }
+    .rail .modes{
+      flex-direction:column;
+      background:transparent;
+      border:none;
+      box-shadow:none;
+      padding:0;
+      gap:18px;
+      backdrop-filter:none;
+      -webkit-backdrop-filter:none;
+    }
+    .rail .modes .btn{width:56px;height:56px}
+    .rail .sense{
+      flex-direction:column;
+      width:56px;
+      height:270px;
+      padding:20px 0;
+      border-radius:999px;
+    }
+    .rail .sense input{
+      writing-mode:vertical-lr;
+      direction:rtl;
+      appearance:slider-vertical;
+      width:28px;
+      height:210px;
+    }
+    .rail #bUp{
+      margin-top:auto;
+      width:56px;
+      height:56px;
+      border-color:rgba(77,124,254,.55);
+      background:#101c36;
+    }
+    .rail #bUp svg{stroke:var(--accent)}
+  }
   #dbg{
     display:none;
     position:fixed;
@@ -127,9 +200,12 @@
 </style>
 </head>
 <body>
+<main class="stage" id="stage">
+<div class="viewer" id="viewer">
 <canvas id="photo" aria-label="touch the photo"></canvas>
+</div>
 <canvas id="blocks" aria-hidden="true"></canvas>
-<div class="modes">
+<div class="modes" id="modes">
   <button id="bTouch" class="btn" aria-label="touch" aria-pressed="false">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M6.3 6.3 C4.6 8 3.8 10 3.8 12"/><path d="M17.7 6.3 C19.4 8 20.2 10 20.2 12"/><path d="M6.3 17.7 C4.6 16 3.8 14 3.8 12"/><path d="M17.7 17.7 C19.4 16 20.2 14 20.2 12"/></svg>
   </button>
@@ -140,7 +216,7 @@
     <svg viewBox="0 0 24 24"><path d="M3 12 C6 7.6 9.4 6 12 6 C14.6 6 18 7.6 21 12 C18 16.4 14.6 18 12 18 C9.4 18 6 16.4 3 12 Z"/><circle cx="12" cy="12" r="2.6"/></svg>
   </button>
 </div>
-<div class="dock">
+<div class="dock" id="dock">
   <button id="bPrev" class="btn" aria-label="previous">
     <svg viewBox="0 0 24 24"><path d="M14.5 6 C14.5 6 9 10.2 9 12 C9 13.8 14.5 18 14.5 18"/></svg>
   </button>
@@ -151,9 +227,11 @@
     <svg viewBox="0 0 24 24"><path d="M9.5 6 C9.5 6 15 10.2 15 12 C15 13.8 9.5 18 9.5 18"/></svg>
   </button>
 </div>
-<div class="sense">
+<div class="sense" id="senseWrap">
   <input id="sense" type="range" min="0.3" max="0.9" step="0.01" value="0.3" aria-label="sensitivity">
 </div>
+</main>
+<aside class="rail" id="rail" aria-label="controls"></aside>
 <input id="file" type="file" accept="image/*">
 <div id="dbg" aria-hidden="true"></div>
 <script type="module">
@@ -250,7 +328,12 @@ function rr(c, x, y, w, h, r) {
 
 function resize() {
   DPR = Math.min(2, window.devicePixelRatio || 1);
-  side = Math.max(240, Math.min(window.innerWidth - 32, window.innerHeight - 382, 560));
+  const wide = window.matchMedia('(min-width:900px)').matches;
+  if (wide) {
+    side = Math.max(280, Math.min(window.innerWidth - 320, window.innerHeight - 140, 640));
+  } else {
+    side = Math.max(240, Math.min(window.innerWidth - 32, window.innerHeight - 382, 560));
+  }
   photo.width = Math.floor(side * DPR);
   photo.height = Math.floor(side * DPR);
   photo.style.width = side + 'px';
@@ -822,9 +905,35 @@ file.addEventListener('change', () => {
   file.value = '';
 });
 
+const stageEl = document.getElementById('stage');
+const viewerEl = document.getElementById('viewer');
+const modesEl = document.getElementById('modes');
+const dockEl = document.getElementById('dock');
+const senseWrapEl = document.getElementById('senseWrap');
+const railEl = document.getElementById('rail');
+const wideMQ = window.matchMedia('(min-width:900px)');
+
+function applyLayout() {
+  if (wideMQ.matches) {
+    // desktop: < > flank the photo, modes + slider + upload live in the rail
+    viewerEl.insertBefore(bPrev, photo);
+    viewerEl.appendChild(bNext);
+    railEl.appendChild(modesEl);
+    railEl.appendChild(senseWrapEl);
+    railEl.appendChild(bUp);
+  } else {
+    // mobile: original stacked UI (viewer, dots, modes, dock, slider)
+    stageEl.insertBefore(modesEl, dockEl);
+    dockEl.append(bPrev, bUp, bNext);
+    stageEl.appendChild(senseWrapEl);
+  }
+  resize();
+}
+wideMQ.addEventListener('change', applyLayout);
+
 window.addEventListener('resize', resize);
 
-resize();
+applyLayout();
 requestAnimationFrame((n) => {
   last = n;
   requestAnimationFrame(frame);
