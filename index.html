@@ -213,7 +213,7 @@ function paintGlow() {
   const g = sim.getContext('2d');
   const img = g.createImageData(grid, grid);
   for (let i = 0; i < shown.length; i += 1) {
-    const a = i === tapped ? 1 : simToAlpha(shown[i]);
+    const a = simToAlpha(shown[i]);
     const o = i * 4;
     img.data[o] = 226;
     img.data[o + 1] = 160;
@@ -226,21 +226,6 @@ function paintGlow() {
   pctx.clip();
   pctx.imageSmoothingEnabled = true;
   pctx.drawImage(sim, 0, 0, side, side);
-  if (tapped >= 0) {
-    const gx = tapped % grid;
-    const gy = Math.floor(tapped / grid);
-    const cx = ((gx + 0.5) / grid) * side;
-    const cy = ((gy + 0.5) / grid) * side;
-    const pr = (0.9 / grid) * side;
-    const halo = pctx.createRadialGradient(cx, cy, 0, cx, cy, pr * 2.4);
-    halo.addColorStop(0, 'rgba(255,255,255,.95)');
-    halo.addColorStop(0.4, 'rgba(255,214,170,.8)');
-    halo.addColorStop(1, 'rgba(255,214,170,0)');
-    pctx.fillStyle = halo;
-    pctx.beginPath();
-    pctx.arc(cx, cy, pr * 2.4, 0, TAU);
-    pctx.fill();
-  }
   pctx.restore();
 }
 
@@ -403,6 +388,13 @@ photo.addEventListener('pointerdown', (ev) => {
   if (cell < 0) return;
   tapped = cell;
   target = similarityMap(feats, grid * grid, dim, cell);
+  let top = -2;
+  let count = 0;
+  for (let i = 0; i < target.length; i += 1) {
+    if (target[i] > top) top = target[i];
+    if (target[i] > 0.7) count += 1;
+  }
+  log('tap cell=' + tapped + ' self=' + target[tapped].toFixed(3) + ' max=' + top.toFixed(3) + ' hot=' + count);
   ripples.push({ x, y, r: 6, a: 0.55 });
 });
 
