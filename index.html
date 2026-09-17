@@ -186,6 +186,7 @@ let dim = 0;
 let target = null;
 let shown = null;
 let tapped = -1;
+let isGrey = false; // true when the photo itself is ~black & white
 let mode = 'touch'; // touch | dream | gaze
 let cut = 0.3; // strictness threshold: higher = tighter match region
 let clsSims = null;
@@ -205,7 +206,8 @@ let tGlobal = rand(0, 100);
 let last = performance.now();
 const mask = document.createElement('canvas'); // low-res veil mask
 const grey = document.createElement('canvas'); // desaturated + dimmed photo, built per photo
-const work = document.createElement('canvas'); // scratch layer for the grey spotlight
+const pop = document.createElement('canvas'); // match highlight: vivid color, or blue tint for B&W
+const work = document.createElement('canvas'); // scratch layer for compositing
 const dbgEl = document.getElementById('dbg');
 const DEBUG = new URLSearchParams(location.search).has('debug');
 if (DEBUG) dbgEl.style.display = 'block';
@@ -293,7 +295,7 @@ function paintShade() {
     return;
   }
   const src = mode === 'gaze' ? gazeShown : shown;
-  if (!src || grey.width === 0) return;
+  if (!src || grey.width === 0 || pop.width === 0) return;
   if (mode === 'touch' && tapped < 0) return; // clean photo until first tap
   // Peak-normalize so the hottest patch always reads full color: touch peaks
   // at self-similarity 1, gaze peaks wherever CLS looks hardest.
@@ -323,6 +325,26 @@ function paintShade() {
   const w = work.getContext('2d');
   w.clearRect(0, 0, work.width, work.height);
   w.drawImage(grey, 0, 0, work.width, work.height);
+  w.globalCompositeOperation = 'destination-in';
+  w.imageSmoothingEnabled = true;
+  w.drawImage(mask, 0, 0, work.width, work.height);
+  w.globalCompositeOperation = 'source-over';
+  pctx.save();
+  rr(pctx, 0, 0, side, side, 28);
+  pctx.clip();
+  pctx.imageSmoothingEnabled = true;
+  pctx.drawImage(work, 0, 0, side, side);
+  pctx.restore();
+  // match core pops: vivid saturation on color photos, blue tint on B&W.
+  // same soft falloff, so the core reads even where grey-vs-color is subtle.
+  for (let i = 0; i < src.length; i += 1) {
+    const a = clamp(simToAlpha(src[i] * inv, cut) * pulse, 0, 1);
+    const o = i * 4;
+    img.data[o + 3] = Math.floor(a * 255);
+  }
+  g.putImageData(img, 0, 0);
+  w.clearRect(0, 0, work.width, work.height);
+  w.drawImage(pop, 0, 0, work.width, work.height);
   w.globalCompositeOperation = 'destination-in';
   w.imageSmoothingEnabled = true;
   w.drawImage(mask, 0, 0, work.width, work.height);
@@ -491,6 +513,17 @@ function setPhoto(img) {
   square.width = S;
   square.height = S;
   square.getContext('2d').drawImage(img, sx, sy, s, s, 0, 0, S, S);
+  // is this photo itself black & white? sample saturation
+  const sqd = square.getContext('2d').getImageData(0, 0, S, S).data;
+  let colorful = 0;
+  let total = 0;
+  for (let i = 0; i < sqd.length; i += 64) {
+    total += 1;
+    const mx = Math.max(sqd[i], sqd[i + 1], sqd[i + 2]);
+    const mn = Math.min(sqd[i], sqd[i + 1], sqd[i + 2]);
+    if (mx - mn > 12) colorful += 1;
+  }
+  isGrey = total > 0 && colorful / total < 0.02;
   // desaturated + dimmed copy for the grey spotlight (built once per photo)
   grey.width = S;
   grey.height = S;
@@ -506,6 +539,30 @@ function setPhoto(img) {
     gd[i + 2] = v;
   }
   gtx.putImageData(gid, 0, 0);
+  // match highlight, built once per photo: 1.7x saturation for color photos
+  // (a saturation boost is a no-op on B&W, so those get a blue duotone tint
+  // instead — a hue is safe there because the photo has none to clash with)
+  pop.width = S;
+  pop.height = S;
+  const ptx = pop.getContext('2d');
+  ptx.drawImage(square, 0, 0);
+  const pid = ptx.getImageData(0, 0, S, S);
+  const pd = pid.data;
+  for (let i = 0; i < pd.length; i += 4) {
+    if (isGrey) {
+      const lum = (pd[i] * 77 + pd[i + 1] * 150 + pd[i + 2] * 29) >> 8;
+      pd[i] = Math.min(255, (lum * 0.45 + 20) | 0);
+      pd[i + 1] = Math.min(255, (lum * 0.62 + 30) | 0);
+      pd[i + 2] = Math.min(255, lum + 40);
+    } else {
+      const lum = (pd[i] * 77 + pd[i + 1] * 150 + pd[i + 2] * 29) >> 8;
+      pd[i] = Math.max(0, Math.min(255, lum + ((pd[i] - lum) * 1.7) | 0));
+      pd[i + 1] = Math.max(0, Math.min(255, lum + ((pd[i + 1] - lum) * 1.7) | 0));
+      pd[i + 2] = Math.max(0, Math.min(255, lum + ((pd[i + 2] - lum) * 1.7) | 0));
+    }
+  }
+  ptx.putImageData(pid, 0, 0);
+  log('photo grey=' + isGrey);
   feats = null;
   target = null;
   shown = null;

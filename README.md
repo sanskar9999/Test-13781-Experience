@@ -39,8 +39,13 @@ UI is deliberately minimal — one rounded photo, one status strip, two pill doc
 
 Matches read via brightness, not hue: the photo is shown in full color where
 it matches and fades to dark grey (desaturated to 62% brightness) elsewhere,
-using the same soft falloff the old orange glow had. Threshold mapping lives
-in `touch.js: simToAlpha()` — `(sim - cut) / (1 - cut)`, pow 1.5 falloff, upscaled
+using the same soft falloff the old orange glow had. On top of that the match
+core gets a 1.7x saturation boost, so it pops even where grey-vs-color is
+subtle. Black-and-white photos are detected per photo (`isGrey`, <2% of
+sampled pixels colorful): a saturation boost would be a no-op there, so the
+match core gets a blue duotone tint instead — a hue is safe because the photo
+has none to clash with. Threshold mapping lives in
+`touch.js: simToAlpha()` — `(sim - cut) / (1 - cut)`, pow 1.5 falloff, upscaled
 with smoothing so there are no blocky edges. Accent color is blue (`#4d7cfe`).
 
 ## 2. How it works (pipeline)
@@ -65,8 +70,9 @@ with smoothing so there are no blocky edges. Accent color is blue (`#4d7cfe`).
      (`shown += (target - shown) * (1 - e^-6dt)`), then rendered as a grey
      spotlight (`paintShade()`): a precomputed desaturated copy (`grey`,
      built once per photo in `setPhoto()`) is masked by the upscaled soft
-     veil and composited over the full-color base. Clean photo until the
-     first tap (`tapped < 0`).
+     veil and composited over the full-color base; then a second composited
+     layer (`pop`: vivid copy, or blue tint when `isGrey`) highlights the
+     match core. Clean photo until the first tap (`tapped < 0`).
    - *gaze:* raw CLS vector (`sliceCls`) dotted against normalized patches,
      same smoothing and same grey spotlight, plus a gentle sine pulse on
      the veil.
