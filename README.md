@@ -1,5 +1,9 @@
 # Test-13781-Experience — Touch the Photo
 
+
+https://github.com/user-attachments/assets/66941bec-a9ed-4454-8112-e3a29198e211
+
+
 In-browser tactile vision explorer. Tap any part of a photo and the patches
 the vision transformer thinks are *the same thing* stay in full color while
 everything else falls into grey. Leave it alone and it breathes on its own,
