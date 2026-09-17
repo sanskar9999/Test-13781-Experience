@@ -27,13 +27,13 @@ UI is deliberately minimal — one rounded photo, one status strip, two pill doc
 
 | Gesture | Effect |
 |---|---|
-| Single tap / click on photo | Switches to `touch` mode, computes cosine similarity of tapped patch vs every patch, keeps matches in color and greys out the rest |
-| `touch` button | Back to similarity mode |
+| Single tap / click on photo | Switches from the default gaze wander to `touch` mode, computes cosine similarity of tapped patch vs every patch, keeps matches in color and greys out the rest |
+| `touch` button | Manual similarity mode |
 | `dream` button (orb) | Shows top-3 PCA of patch features as RGB "what the model sees" |
-| `gaze` button (eye) | Shows CLS (whole-image) token vs every patch with the same grey spotlight, gently pulsing — "what the model looks at" |
-| Sensitivity bar (bottom) | Strictness (`cut` 0.3–0.9, default 0.3 = minimum). Left = broad region, right = tight core |
+| `gaze` button (eye, default) | Machine breathing: fixates a random unvisited patch, swells strictness over 1s (sin wave), holds 0.5s at max, then shifts to another unvisited region — until you tap |
+| Bar slider (bottom, no label) | Strictness (`cut` 0.3–0.9, default 0.3 = minimum). Left = broad region, right = tight core. Gaze swells around it |
 | Mouse wheel over photo | Same control on desktop (`cut += deltaY * 0.0006`, synced to the bar) |
-| `<` / `>` | Cycle built-in samples: `images/dog.jpg` → `images/cats.jpg` → `images/chonk.jpg` |
+| `<` / `>` | Cycle built-in samples: `images/dog.jpg` → `images/cats.jpg` → `images/chonk.jpg` (opens on cats) |
 | Upload (↑) | Pick your own image (`<input type=file accept=image/*>`) |
 | `?debug` URL param | e.g. `.../index.html?debug` — shows `#dbg` overlay + console logs (`boot`, `brain try`, `infer ok`, `tap cell=`, `cut=`) |
 
@@ -73,9 +73,13 @@ with smoothing so there are no blocky edges. Accent color is blue (`#4d7cfe`).
      veil and composited over the full-color base; then a second composited
      layer (`pop`: vivid copy, or blue tint when `isGrey`) highlights the
      match core. Clean photo until the first tap (`tapped < 0`).
-   - *gaze:* raw CLS vector (`sliceCls`) dotted against normalized patches,
-     same smoothing and same grey spotlight, plus a gentle sine pulse on
-     the veil.
+   - *gaze (default until first tap):* automatic wander, not the CLS vector:
+     `pickGazeFocus()` fixates a random previously-unvisited patch and maps
+     its similarities (an automatic tap). Strictness breathes — 1s sin swell
+     around the slider value (`gazeCut`), 0.5s hold at max (0.9), then shift
+     (`GAZE_BREATHE`/`GAZE_HOLD`). `gazeShown` lerps toward each new focus so
+     attention visibly drifts. Visited patches tracked per photo, reset when
+     exhausted. Tapping at any point drops into `touch`.
    - *dream:* top-3 PCA of **raw** (unnormalized) patches → per-patch RGB
      in [0,1] (`pca3`: center → Gram matrix → 60-iter power iteration ×3
      with deflation → min-max per component). Computed once per photo,
@@ -110,9 +114,10 @@ Key constants in `index.html` (top of module script):
 - `cut = 0.3`, clamped 0.3–0.9 — strictness, wired to the bottom bar (default minimum).
 
 Key mutable state: `feats` (Float32Array n×dim, normalized), `grid`, `dim`,
-`target/shown` (touch sim), `clsSims/gazeShown`, `dreamRGB/dreamShown`,
-`ready`, `modelLoading`, `brainDead`, `loadFrac`, `sweep`, `ripples`,
-`tapped`, `mode`.
+`target/shown` (touch sim), `clsSims` (computed, informational),
+`gazeShown`/`gazeTarget`/`gazeCell`/`gazeVisited`/`gazeT`/`gazeCut` (wander),
+`dreamRGB/dreamShown`, `ready`, `modelLoading`, `brainDead`, `loadFrac`,
+`sweep`, `ripples`, `tapped`, `mode` (default `'gaze'`), `isGrey`, `pop`.
 
 ## 4. `touch.js` quick reference
 
