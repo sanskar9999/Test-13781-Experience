@@ -341,6 +341,7 @@ async function infer() {
   sweep = 0;
   const t0 = performance.now();
   try {
+    log('infer start ' + square.width + 'x' + square.height);
     const { pixel_values } = await processor(square);
     log('pixels: [' + pixel_values.dims.join(',') + ']');
     const out = await model({ pixel_values });
@@ -360,6 +361,7 @@ async function infer() {
     ready = false;
     brainDead = true;
     log('infer fail: ' + (e && e.message ? e.message : e));
+    if (e && e.stack) log('trace: ' + String(e.stack).split('\n').slice(0, 5).join(' | '));
   }
 }
 
