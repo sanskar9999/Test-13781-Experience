@@ -27,18 +27,21 @@ UI is deliberately minimal — one rounded photo, one status strip, two pill doc
 
 | Gesture | Effect |
 |---|---|
-| Single tap / click on photo | Switches to `touch` mode, computes cosine similarity of tapped patch vs every patch, glows matches |
-| `touch` button | Back to similarity-glow mode |
+| Single tap / click on photo | Switches to `touch` mode, computes cosine similarity of tapped patch vs every patch, dims the rest + traces the match |
+| `touch` button | Back to similarity mode |
 | `dream` button (orb) | Shows top-3 PCA of patch features as RGB "what the model sees" |
-| `gaze` button (eye) | Shows CLS (whole-image) token vs every patch, gently pulsing — "what the model looks at" |
-| Two-finger vertical drag on photo | Sensitivity (`cut` 0–0.6, default 0.25). Drag up = stricter, down = looser |
-| Mouse wheel over photo | Same sensitivity control on desktop (`cut += deltaY * 0.0006`) |
+| `gaze` button (eye) | Shows CLS (whole-image) token vs every patch with the same dim + contour treatment, gently pulsing — "what the model looks at" |
+| Sensitivity bar (bottom) | Strictness (`cut` 0–0.6, default 0 = minimum). Left = more matches, right = stricter |
+| Mouse wheel over photo | Same control on desktop (`cut += deltaY * 0.0006`, synced to the bar) |
 | `<` / `>` | Cycle built-in samples: `images/dog.jpg` → `images/cats.jpg` → `images/chonk.jpg` |
 | Upload (↑) | Pick your own image (`<input type=file accept=image/*>`) |
 | `?debug` URL param | e.g. `.../index.html?debug` — shows `#dbg` overlay + console logs (`boot`, `brain try`, `infer ok`, `tap cell=`, `cut=`) |
 
-Orange glow = `rgba(226,160,107,α)`. Sensitivity mapping lives in
+Matches read via brightness, not hue: non-matches get a navy veil
+(`rgba(23,30,58,α)`, up to 0.62) while matches stay full-color, traced by a
+blue halo + marching white contour. Threshold mapping lives in
 `touch.js: simToAlpha()` — `(sim - cut) / 0.55`, pow 1.5 falloff.
+Accent color is blue (`#4d7cfe`).
 
 ## 2. How it works (pipeline)
 
@@ -59,17 +62,20 @@ Orange glow = `rgba(226,160,107,α)`. Sensitivity mapping lives in
 5. **Per mode:**
    - *touch:* L2-normalize patches (`normalizeRows`), cosine-similarity of
      tapped cell vs all (`similarityMap`). Result smoothed per-frame
-     (`shown += (target - shown) * (1 - e^-6dt)`), upscaled from 28×28 to
-     full size with smoothing for the soft glow.
+     (`shown += (target - shown) * (1 - e^-6dt)`), then rendered as dim +
+     contour (`paintShade()`): veil upscaled from 28×28 with smoothing,
+     boundary traced cell-by-cell with a blue halo + animated white dash.
+     Clean photo until the first tap (`tapped < 0`).
    - *gaze:* raw CLS vector (`sliceCls`) dotted against normalized patches,
-     same smoothing, plus a sine pulse in `paintGlow()`.
+     same smoothing and same dim + contour, plus a sine pulse on the veil
+     and a marching dash offset.
    - *dream:* top-3 PCA of **raw** (unnormalized) patches → per-patch RGB
      in [0,1] (`pca3`: center → Gram matrix → 60-iter power iteration ×3
      with deflation → min-max per component). Computed once per photo,
      faded in like the others.
 6. **Render loop.** `requestAnimationFrame(frame)` always runs: base photo +
-   glow layer (clipped to 28px rounded rect) + expanding tap ripples +
-   breathing veil while loading / steady dim if model failed (`brainDead`).
+   shade layer (dim + contour, clipped to 28px rounded rect) + expanding tap
+   ripples + breathing veil while loading / steady dim if model failed (`brainDead`).
 
 If the model fails all three tries, the photo stays usable but dimmed and
 taps only make grey ripples + log `tap ignored`.
@@ -94,7 +100,7 @@ Key constants in `index.html` (top of module script):
 - `SAMPLES` — sample list. Paths are relative, so local `python3 -m http.server` works.
 - `S = 448` in `setPhoto()` — inference resolution. Larger = finer grid but
   slower + more RAM. 448 ÷ 16 = 28 is the current grid.
-- `cut = 0.25`, clamped 0–0.6 — default sensitivity.
+- `cut = 0`, clamped 0–0.6 — strictness, wired to the bottom bar (default minimum).
 
 Key mutable state: `feats` (Float32Array n×dim, normalized), `grid`, `dim`,
 `target/shown` (touch sim), `clsSims/gazeShown`, `dreamRGB/dreamShown`,
