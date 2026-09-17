@@ -73,12 +73,18 @@ with smoothing so there are no blocky edges. Accent color is blue (`#4d7cfe`).
      veil and composited over the full-color base; then a second composited
      layer (`pop`: vivid copy, or blue tint when `isGrey`) highlights the
      match core. Clean photo until the first tap (`tapped < 0`).
-   - *gaze (default until first tap):* automatic wander, not the CLS vector:
-     `pickGazeFocus()` fixates a random previously-unvisited patch and maps
-     its similarities (an automatic tap). One continuous breath, no resets:
-     2s inhale (strictness slider → 0.9 on a sine ease), 1s hold at max,
-     1.6s exhale (0.9 → slider) while the field crossfades old → new on the
-     same easing, so glide speed peaks mid-travel like a tap morph
+   - *gaze (default until first tap):* saliency wander, not random and not the
+     CLS vector. `pickGazeFocus()` scores every unvisited patch:
+     PCA-color distance (`dreamRGB`) to the current + last 8 fixations
+     (never similar sections in a row) plus vibrance
+     (`0.6*patchLum + 0.4*patchSat`, built per photo in `infer()`), with a
+     schedule — vibrance weight `1.5*(1-p)` fades as explored fraction `p`
+     grows while novelty weight `0.5+1.5*p` rises, so bright lights and vivid
+     colors go first and little details come later. Next fixation is a
+     softmax draw (`TEMP=0.3`) over the top 5 (`GAZE_TOPK`): favorites usually
+     win, surprises slip in. One continuous breath, no resets: 2s inhale
+     (strictness slider → 0.9 on a sine ease), 1s hold at max, 1.6s exhale
+     (0.9 → slider) while the field crossfades old → new on the same easing
      (`GAZE_BREATHE`/`GAZE_HOLD`/`GAZE_SHIFT`, `gazePhase`, `gazeFrom`).
      Visited patches tracked per photo, reset when exhausted. Tapping at any
      point drops into `touch`.

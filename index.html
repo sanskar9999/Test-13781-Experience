@@ -201,6 +201,11 @@ let gazeFrom = null; // field snapshot at shift start, for the eased glide
 const GAZE_BREATHE = 2.0; // inhale duration
 const GAZE_HOLD = 1.0; // stillness at max sensitivity before shifting
 const GAZE_SHIFT = 1.6; // exhale + glide duration
+const GAZE_TOPK = 5; // next fixation drawn randomly from the top-K scorers
+const GAZE_MEMORY = 8; // recent fixation colors: never similar in a row
+let gazeRecent = []; // PCA colors of recent fixations, oldest first
+let patchLum = null; // per-patch brightness 0..1, built per photo in infer()
+let patchSat = null; // per-patch saturation 0..1, built per photo in infer()
 let dreamRGB = null;
 let dreamShown = null;
 let downInfo = null;
@@ -534,6 +539,33 @@ async function infer() {
     dreamRGB = pca3(sliced.patches, n, dim);
     dreamShown = new Float32Array(n * 3);
     log('dream ok: ms=' + Math.round(performance.now() - tDream));
+    // per-patch brightness + saturation for the attention scheduler:
+    // bright light sources and vibrant colors get visited first, details later
+    patchLum = new Float32Array(n);
+    patchSat = new Float32Array(n);
+    const sqSize = square.width;
+    const sqx = square.getContext('2d').getImageData(0, 0, sqSize, sqSize).data;
+    const ps = sqSize / grid;
+    for (let cy = 0; cy < grid; cy += 1) {
+      for (let cx = 0; cx < grid; cx += 1) {
+        let l = 0;
+        let st = 0;
+        let c = 0;
+        for (let py = cy * ps; py < (cy + 1) * ps; py += 2) {
+          for (let px = cx * ps; px < (cx + 1) * ps; px += 2) {
+            const o = (py * sqSize + px) * 4;
+            const r = sqx[o];
+            const g = sqx[o + 1];
+            const b = sqx[o + 2];
+            l += (r * 77 + g * 150 + b * 29) >> 8;
+            st += Math.max(r, g, b) - Math.min(r, g, b);
+            c += 1;
+          }
+        }
+        patchLum[cy * grid + cx] = l / c / 255;
+        patchSat[cy * grid + cx] = st / c / 255;
+      }
+    }
     target = new Float32Array(n);
     shown = new Float32Array(n);
     tapped = -1;
@@ -621,6 +653,9 @@ function setPhoto(img) {
   gazeCut = cut;
   gazePhase = 0;
   gazeFrom = null;
+  gazeRecent = [];
+  patchLum = null;
+  patchSat = null;
   ripples = [];
   ready = false;
   brainDead = false;
@@ -652,23 +687,68 @@ bGaze.addEventListener('click', () => setMode('gaze'));
 function pickGazeFocus() {
   const n = grid * grid;
   if (!gazeVisited || gazeVisited.length !== n) gazeVisited = new Uint8Array(n);
-  let unvisited = 0;
-  for (let i = 0; i < n; i += 1) if (!gazeVisited[i]) unvisited += 1;
-  if (unvisited === 0) {
+  let visitedCount = 0;
+  for (let i = 0; i < n; i += 1) if (gazeVisited[i]) visitedCount += 1;
+  if (visitedCount >= n) {
     gazeVisited.fill(0);
-    unvisited = n;
+    gazeRecent = [];
+    visitedCount = 0;
   }
-  let r = Math.floor(Math.random() * unvisited);
-  let cell = 0;
+  // schedule: bright/vibrant first, subtle details later. p goes 0 -> 1 as
+  // the photo gets explored; vibrance weight fades, novelty weight grows.
+  const p = visitedCount / n;
+  const wNov = 0.5 + 1.5 * p;
+  const wVib = 1.5 * (1 - p);
+  const havePCA = dreamRGB && dreamRGB.length === n * 3;
+  const haveStats = patchLum && patchSat && patchLum.length === n;
+  const cr = gazeCell >= 0 && havePCA ? gazeCell * 3 : -1;
+  const best = [];
   for (let i = 0; i < n; i += 1) {
     if (gazeVisited[i]) continue;
-    if (r === 0) { cell = i; break; }
-    r -= 1;
+    // distinctness: PCA-color distance to the current fixation and to recent
+    // ones, so we never visit similar sections in a row
+    let d = 1;
+    if (cr >= 0) {
+      const dx = dreamRGB[i * 3] - dreamRGB[cr];
+      const dy = dreamRGB[i * 3 + 1] - dreamRGB[cr + 1];
+      const dz = dreamRGB[i * 3 + 2] - dreamRGB[cr + 2];
+      d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      for (let k = 0; k < gazeRecent.length; k += 1) {
+        const q = gazeRecent[k];
+        const ex = dreamRGB[i * 3] - q[0];
+        const ey = dreamRGB[i * 3 + 1] - q[1];
+        const ez = dreamRGB[i * 3 + 2] - q[2];
+        const dd = Math.sqrt(ex * ex + ey * ey + ez * ez);
+        if (dd < d) d = dd;
+      }
+    }
+    const vib = haveStats ? 0.6 * patchLum[i] + 0.4 * patchSat[i] : 0;
+    const score = wNov * d + wVib * vib;
+    if (best.length < GAZE_TOPK || score > best[best.length - 1].s) {
+      best.push({ i, s: score });
+      best.sort((a, b) => b.s - a.s);
+      if (best.length > GAZE_TOPK) best.pop();
+    }
+  }
+  // stochastic pick: softmax over the top-K, so favorites usually win
+  // but a surprise can still slip in and it never feels mechanical
+  const TEMP = 0.3;
+  let denom = 0;
+  for (let b = 0; b < best.length; b += 1) denom += Math.exp(best[b].s / TEMP);
+  let roll = Math.random() * denom;
+  let cell = best[best.length - 1].i;
+  for (let b = 0; b < best.length; b += 1) {
+    roll -= Math.exp(best[b].s / TEMP);
+    if (roll <= 0) { cell = best[b].i; break; }
   }
   gazeVisited[cell] = 1;
+  if (havePCA) {
+    gazeRecent.push([dreamRGB[cell * 3], dreamRGB[cell * 3 + 1], dreamRGB[cell * 3 + 2]]);
+    if (gazeRecent.length > GAZE_MEMORY) gazeRecent.shift();
+  }
   gazeCell = cell;
   gazeTarget = similarityMap(feats, n, dim, cell);
-  log('gaze cell=' + cell);
+  log('gaze cell=' + cell + ' explored=' + (visitedCount + 1) + '/' + n);
 }
 
 function doTap(x, y) {
